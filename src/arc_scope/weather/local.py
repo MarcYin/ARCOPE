@@ -90,7 +90,7 @@ class LocalProvider(WeatherProvider):
 
     def _load_netcdf(self, time_range: tuple[datetime, datetime]) -> xr.Dataset:
         """Load from NetCDF with variable renaming."""
-        ds = xr.open_dataset(self._path)
+        ds = xr.open_dataset(self._path, engine="scipy")
 
         # Time slicing
         if "time" in ds.dims:

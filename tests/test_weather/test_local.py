@@ -72,7 +72,7 @@ def test_load_netcdf_weather(tmp_path):
         },
         coords={"time": times},
     )
-    ds_orig.to_netcdf(nc_path)
+    ds_orig.to_netcdf(nc_path, engine="scipy")
 
     var_map = {"temperature": "Ta", "shortwave": "Rin"}
     provider = LocalProvider(nc_path, var_map=var_map)

@@ -191,7 +191,7 @@ class ArcScopePipeline:
 
             write_netcdf_dataset(ds, output_path)
         except ImportError:
-            ds.to_netcdf(output_path)
+            ds.to_netcdf(output_path, engine="scipy")
 
         logger.info("SCOPE output saved to %s", output_path)
         return output_path

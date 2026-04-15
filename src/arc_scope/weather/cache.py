@@ -27,14 +27,14 @@ class WeatherCache:
         """Retrieve a cached dataset, or ``None`` if not found."""
         path = self._path(key)
         if path.exists():
-            return xr.open_dataset(path)
+            return xr.open_dataset(path, engine="scipy")
         return None
 
     def put(self, key: str, ds: xr.Dataset) -> Path:
         """Cache a dataset and return the file path."""
         self._dir.mkdir(parents=True, exist_ok=True)
         path = self._path(key)
-        ds.to_netcdf(path)
+        ds.to_netcdf(path, engine="scipy")
         return path
 
     def clear(self) -> int:
