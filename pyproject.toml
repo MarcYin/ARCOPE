@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arc-scope"
+dynamic = ["version"]
+description = "Integration package bridging ARC crop parameter retrieval with SCOPE radiative transfer simulations"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+    { name = "Feng Yin" },
+]
+dependencies = [
+    "numpy>=1.24",
+    "xarray>=2023.1",
+    "scipy>=1.11",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+arc = [
+    "ARC @ git+https://github.com/MarcYin/ARC",
+]
+scope = [
+    "scope-rtm>=0.2",
+    "torch>=2.2",
+]
+weather = [
+    "cdsapi>=0.6",
+]
+optim = [
+    "scope-rtm>=0.2",
+    "torch>=2.2",
+]
+all = [
+    "arc-scope[arc,scope,weather,optim]",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools_scm]
+fallback_version = "0.1.0"
