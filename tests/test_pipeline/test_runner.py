@@ -89,9 +89,10 @@ def test_save_scope_output_creates_file(tmp_path):
     config = _make_config(output_dir=str(tmp_path / "results"))
     pipeline = ArcScopePipeline(config)
 
+    # Use integer index to avoid datetime encoding issues with scipy
     dummy_ds = xr.Dataset({
         "reflectance": (("time",), np.array([0.1, 0.2, 0.3])),
-    }, coords={"time": pd.date_range("2021-06-01", periods=3)})
+    }, coords={"time": np.arange(3)})
 
     output_path = pipeline._save_scope_output(dummy_ds)
     assert Path(output_path).exists()

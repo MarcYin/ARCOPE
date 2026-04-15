@@ -72,7 +72,8 @@ def test_load_netcdf_weather(tmp_path):
         },
         coords={"time": times},
     )
-    ds_orig.to_netcdf(nc_path, engine="scipy")
+    encoding = {"time": {"units": "hours since 2000-01-01", "dtype": "float64"}}
+    ds_orig.to_netcdf(nc_path, engine="scipy", encoding=encoding)
 
     var_map = {"temperature": "Ta", "shortwave": "Rin"}
     provider = LocalProvider(nc_path, var_map=var_map)

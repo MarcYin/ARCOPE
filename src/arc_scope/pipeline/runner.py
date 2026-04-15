@@ -191,7 +191,9 @@ class ArcScopePipeline:
 
             write_netcdf_dataset(ds, output_path)
         except ImportError:
-            ds.to_netcdf(output_path, engine="scipy")
+            from arc_scope.weather.cache import _netcdf_encoding
+
+            ds.to_netcdf(output_path, engine="scipy", encoding=_netcdf_encoding(ds))
 
         logger.info("SCOPE output saved to %s", output_path)
         return output_path

@@ -4,9 +4,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import xarray as xr
 
 from arc_scope.utils.types import PathLike
+
+
+def _netcdf_encoding(ds: xr.Dataset) -> dict:
+    """Build CF-compliant encoding so scipy can write datetime coords."""
+    encoding: dict = {}
+    for name, var in ds.coords.items():
+        if np.issubdtype(var.dtype, np.datetime64):
+            encoding[name] = {"units": "hours since 2000-01-01", "dtype": "float64"}
+    for name, var in ds.data_vars.items():
+        if np.issubdtype(var.dtype, np.datetime64):
+            encoding[name] = {"units": "hours since 2000-01-01", "dtype": "float64"}
+    return encoding
 
 
 class WeatherCache:
@@ -34,7 +47,7 @@ class WeatherCache:
         """Cache a dataset and return the file path."""
         self._dir.mkdir(parents=True, exist_ok=True)
         path = self._path(key)
-        ds.to_netcdf(path, engine="scipy")
+        ds.to_netcdf(path, engine="scipy", encoding=_netcdf_encoding(ds))
         return path
 
     def clear(self) -> int:
