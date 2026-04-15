@@ -8,6 +8,8 @@
 
 ARC-SCOPE is an integration package that connects the **ARC** (Automated Retrieval of Crop biophysical parameters) system with the **SCOPE** (Soil-Canopy Observation of Photosynthesis and Energy fluxes) radiative-transfer model.  It converts Sentinel-2-derived biophysical parameters into SCOPE-ready inputs, fetches meteorological forcing data, orchestrates the full simulation pipeline, and supports parameter optimisation against observed SIF, thermal, or flux data.
 
+The strongest verified path in this repository today is the **core-dependency showcase experiment**. Full SCOPE execution is an optional downstream integration rather than the default first run.
+
 ## Architecture
 
 ```
@@ -83,7 +85,20 @@ See [docs/installation.md](docs/installation.md) for detailed installation instr
 
 ## Quick Start
 
-### 1. Bridge conversion (standalone, from NPZ)
+### 1. Showcase experiment (core dependencies only)
+
+Run the primary in-repo showcase to assemble SCOPE-shaped inputs, inspect forcing diagnostics, and fit a proxy fluorescence response without requiring ARC, SCOPE, or ERA5 credentials:
+
+```bash
+pip install arc-scope
+python3 -m arc_scope.experiments.showcase --output-dir ./showcase-output
+```
+
+If you are working from a repo checkout, `examples/05_showcase_experiment.py` wraps the same packaged entry point.
+
+See [docs/showcase-experiment.md](docs/showcase-experiment.md) for the full walkthrough and generated artifacts.
+
+### 2. Bridge conversion (standalone, from NPZ)
 
 Convert saved ARC outputs to SCOPE-ready xarray DataArrays without needing ARC or SCOPE installed:
 
@@ -97,7 +112,7 @@ print(post_bio_da.dims)   # ('y', 'x', 'band', 'time')
 print(post_bio_da.coords["band"].values)  # ['N', 'cab', 'cm', ...]
 ```
 
-### 2. Full pipeline (requires ARC + SCOPE)
+### 3. Full pipeline (requires ARC + SCOPE)
 
 Run the complete workflow from a GeoJSON field boundary to SCOPE outputs:
 
@@ -117,7 +132,7 @@ pipeline = ArcScopePipeline(config)
 result = pipeline.run()
 ```
 
-### 3. Parameter optimisation
+### 4. Parameter optimisation
 
 Optimise SCOPE parameters (e.g., fluorescence quantum efficiency) against observations:
 
@@ -141,8 +156,9 @@ optimised = optimizer.step(objective, params)
 | `arc_scope.weather` | Fetch meteorological forcing data | `WeatherProvider`, `ERA5Provider`, `LocalProvider` |
 | `arc_scope.pipeline` | End-to-end orchestration | `PipelineConfig`, `ArcScopePipeline` |
 | `arc_scope.optim` | Parameter optimisation | `ParameterSpec`, `ParameterSet`, `ScopeObjective`, `ScipyOptimizer`, `TorchOptimizer` |
+| `arc_scope.experiments` | Reproducible showcase experiments | `run_showcase_experiment`, `write_showcase_artifacts` |
 | `arc_scope.utils` | Geometry, I/O, type aliases | `solar_position`, `load_geojson_bounds`, `BBox`, `PathLike` |
-| `arc_scope.data` | Bundled test data | `TEST_FIELD_GEOJSON` |
+| `arc_scope.data` | Bundled test data | `TEST_FIELD_GEOJSON`, `SHOWCASE_WEATHER_CSV` |
 
 ## Configuration Reference
 
@@ -180,6 +196,7 @@ Working examples are in the [`examples/`](examples/) directory:
 - **[02_reflectance_simulation.py](examples/02_reflectance_simulation.py)** -- Prepare and inspect a SCOPE-ready dataset
 - **[03_full_pipeline.py](examples/03_full_pipeline.py)** -- Complete pipeline configuration and step-by-step execution
 - **[04_optimization_demo.py](examples/04_optimization_demo.py)** -- Parameter optimisation workflow with transforms and injection
+- **[05_showcase_experiment.py](examples/05_showcase_experiment.py)** -- Core-only showcase experiment with local weather, geometry, radiation partitioning, and proxy calibration
 
 ## Development
 

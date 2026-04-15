@@ -1,6 +1,8 @@
 # Quick Start
 
-This guide walks through your first ARC-SCOPE run using the bridge module and bundled test data. No external services or heavy dependencies are required.
+Start with the [Showcase Experiment](showcase-experiment.md). It is the strongest verified onboarding path in this repository and runs on the core dependency set only.
+
+This guide then drops one level lower and walks through the bridge module directly so you can see the raw data structures ARC-SCOPE builds.
 
 ## Step 1: Install the Package
 
@@ -10,7 +12,22 @@ pip install arc-scope
 
 This installs the core package with numpy, xarray, scipy, and pandas.
 
-## Step 2: Run the Bridge Example
+## Step 2: Run the Showcase Experiment
+
+```bash
+python3 -m arc_scope.experiments.showcase --output-dir ./showcase-output
+```
+
+This writes:
+
+- `summary.json`
+- `timeseries.csv`
+- `radiation_partition.svg`
+- `proxy_sif_fit.svg`
+
+The showcase does **not** claim a validated full `scope-rtm` run. It demonstrates input assembly, forcing alignment, and proxy calibration mechanics on the repo's tested core surfaces.
+
+## Step 3: Run the Bridge Example
 
 The package includes bundled test data (a GeoJSON field boundary in Belgium). The bridge example creates synthetic ARC-format arrays and converts them to SCOPE-ready xarray DataArrays.
 
@@ -52,7 +69,7 @@ print("Bio DataArray:", post_bio_da.dims, post_bio_da.shape)
 print("Bands:", list(post_bio_da.coords["band"].values))
 ```
 
-## Step 3: Understand the Output Format
+## Step 4: Understand the Output Format
 
 The bridge produces two xarray DataArrays:
 
@@ -67,13 +84,13 @@ The bridge produces two xarray DataArrays:
 
 Both DataArrays carry spatial coordinates derived from the GDAL geotransform, and CRS metadata when rioxarray is available.
 
-## Step 4: Next Steps
+## Step 5: Further Paths
 
-Once you are comfortable with the bridge output format, you can move to more advanced workflows:
+Once you are comfortable with the showcase and bridge outputs, you can move to optional downstream workflows:
 
 ### Full pipeline (requires ARC + SCOPE)
 
-See [`examples/03_full_pipeline.py`](../examples/03_full_pipeline.py) for a complete configuration that runs ARC retrieval, weather fetching, and SCOPE simulation end to end.
+See [examples/03_full_pipeline.py](https://github.com/MarcYin/ARCOPE/blob/main/examples/03_full_pipeline.py) for a complete configuration that runs ARC retrieval, weather fetching, and SCOPE simulation end to end.
 
 ```bash
 pip install "arc-scope[all]"
@@ -82,7 +99,7 @@ python examples/03_full_pipeline.py
 
 ### Parameter optimisation
 
-See [`examples/04_optimization_demo.py`](../examples/04_optimization_demo.py) for optimising SCOPE parameters against observations.
+See [examples/04_optimization_demo.py](https://github.com/MarcYin/ARCOPE/blob/main/examples/04_optimization_demo.py) for parameter transforms and optimisation mechanics.
 
 ### Using local weather data
 

@@ -2,6 +2,8 @@
 
 The pipeline module orchestrates the end-to-end workflow from field definition to SCOPE simulation.
 
+For the core showcase experiment, the most relevant step functions are `bridge_arc_to_scope()`, `build_observation_dataset()`, and `fetch_weather()`. Those are the in-repo boundaries used before the optional `prepare_scope_dataset()` and `run_scope_simulation()` integration steps.
+
 ## `PipelineConfig`
 
 ```python

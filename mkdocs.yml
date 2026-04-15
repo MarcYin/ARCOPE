@@ -1,0 +1,26 @@
+site_name: ARC-SCOPE
+site_description: Bridge ARC-style crop parameter retrieval outputs with SCOPE-shaped experiment inputs.
+site_url: https://marcyin.github.io/ARCOPE/
+repo_url: https://github.com/MarcYin/ARCOPE
+repo_name: MarcYin/ARCOPE
+docs_dir: docs
+site_dir: site
+theme:
+  name: readthedocs
+nav:
+  - Home: index.md
+  - Showcase Experiment: showcase-experiment.md
+  - Quick Start: quickstart.md
+  - Installation: installation.md
+  - Architecture: architecture.md
+  - API:
+      - Bridge: api/bridge.md
+      - Weather: api/weather.md
+      - Pipeline: api/pipeline.md
+      - Optimization: api/optim.md
+  - Limits and Roadmap: limits-and-roadmap.md
+markdown_extensions:
+  - tables
+  - admonition
+  - toc:
+      permalink: true

@@ -15,6 +15,17 @@ The core package installs numpy, xarray, scipy, and pandas. It provides the brid
 pip install arc-scope
 ```
 
+## Recommended First Run
+
+The showcase experiment runs on the core package only. It already includes a bundled local weather file, so you do not need the ERA5 extra for the first end-to-end walkthrough.
+
+```bash
+pip install arc-scope
+python3 -m arc_scope.experiments.showcase --output-dir ./showcase-output
+```
+
+This path exercises the verified in-repo core stack before you add ARC, SCOPE, or ERA5 dependencies.
+
 ## With ARC Support
 
 ARC retrieves biophysical parameters from Sentinel-2 satellite imagery. It requires GDAL, which must be installed at the system level before installing the Python bindings.

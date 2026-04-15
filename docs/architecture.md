@@ -54,6 +54,20 @@ This document describes the internal architecture of ARC-SCOPE, the data flow be
                             Scalar loss  ───>  Optimizer.step()  ───>  Updated ParameterSet
 ```
 
+## Verified Workflow Boundary
+
+The cleanest verified boundary in this repository today is:
+
+1. synthetic or saved ARC-like arrays
+2. bridge conversion to named xarray structures
+3. local weather ingestion
+4. observation geometry generation
+5. radiation partitioning and diagnostic assembly
+
+The optional integration boundary starts at `prepare_scope_dataset()` and `run_scope_simulation()`, which pull in `scope-rtm` and `torch`.
+
+The docs site therefore leads with the core showcase experiment and treats full SCOPE execution as a downstream integration path rather than the default first run.
+
 ## Module Responsibilities
 
 ### `arc_scope.bridge`

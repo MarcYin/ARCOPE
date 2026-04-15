@@ -22,6 +22,7 @@ env/
 venv/
 S2_data/
 output/
+site/
 .DS_Store
 Thumbs.db
 *.swp
