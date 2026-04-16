@@ -6,10 +6,27 @@ repo_name: MarcYin/ARCOPE
 docs_dir: docs
 site_dir: site
 theme:
-  name: readthedocs
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.code.copy
+    - content.tabs.link
+  icon:
+    logo: material/satellite-variant
+  palette:
+    - scheme: default
+      primary: teal
+      accent: amber
 nav:
   - Home: index.md
-  - Showcase Experiment: showcase-experiment.md
+  - Real Full Run: full-run-example.md
+  - Core Showcase: showcase-experiment.md
   - Quick Start: quickstart.md
   - Installation: installation.md
   - Architecture: architecture.md
@@ -22,5 +39,16 @@ nav:
 markdown_extensions:
   - tables
   - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
   - toc:
       permalink: true

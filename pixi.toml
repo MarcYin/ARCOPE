@@ -1,0 +1,34 @@
+[workspace]
+authors = ["Feng Yin"]
+channels = ["conda-forge"]
+name = "arc-scope"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[activation.env]
+KMP_DUPLICATE_LIB_OK = "TRUE"
+OMP_NUM_THREADS = "1"
+
+[tasks]
+fetch-scope-upstream = "scope fetch-upstream --dest ./upstream/SCOPE"
+check-runtime = "PYTHONPATH=src python -m arc_scope.experiments.dual_workflow --scope-root-path ./upstream/SCOPE --check-runtime"
+real-experiment = "PYTHONPATH=src python -m arc_scope.experiments.dual_workflow --scope-root-path ./upstream/SCOPE --dtype float32 --output-dir ./docs/assets/full-run"
+real-experiment-local = "PYTHONPATH=src python -m arc_scope.experiments.dual_workflow --weather-provider local --weather-file ./src/arc_scope/data/showcase_weather.csv --scope-root-path ./upstream/SCOPE --output-dir ./docs/assets/full-run-local"
+docs-build = "PYTHONPATH=src mkdocs build --strict"
+tests = "PYTHONPATH=src pytest -q"
+
+[dependencies]
+python = "3.11.*"
+gdal = ">=3.12.3,<4"
+git = ">=2.53.0,<3"
+netcdf4 = ">=1.7.2,<2"
+
+[pypi-dependencies]
+arc-scope = { path = ".", editable = true }
+arc = { git = "https://github.com/MarcYin/ARC" }
+scope-rtm = ">=0.2.0, <0.3"
+torch = ">=2.11.0, <3"
+cdsapi = ">=0.7.7, <0.8"
+mkdocs = ">=1.6.1, <2"
+mkdocs-material = ">=9.7.6, <10"
+matplotlib = ">=3.9, <4"

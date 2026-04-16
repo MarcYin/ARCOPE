@@ -1,0 +1,30 @@
+{
+  "geojson_path": "/Users/fengyin/Documents/ARC-SCOPE/src/arc_scope/data/test_field.geojson",
+  "location": {
+    "longitude": 5.0209665,
+    "latitude": 51.277001999999996,
+    "bounds_wgs84": [
+      5.019294,
+      51.274966,
+      5.022639,
+      51.279038
+    ]
+  },
+  "start_date": "2021-05-15",
+  "end_date": "2021-10-01",
+  "crop_type": "wheat",
+  "start_of_season": 170,
+  "year": 2021,
+  "num_samples": 100000,
+  "growth_season_length": 60,
+  "data_source": "aws",
+  "weather_provider": "era5",
+  "weather_config": {},
+  "workflows": [
+    "reflectance"
+  ],
+  "scope_root_path": "upstream/SCOPE",
+  "device": "cpu",
+  "dtype": "float64",
+  "python": "3.11.15"
+}

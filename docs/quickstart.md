@@ -1,6 +1,8 @@
 # Quick Start
 
-Start with the [Showcase Experiment](showcase-experiment.md). It is the strongest verified onboarding path in this repository and runs on the core dependency set only.
+Start with the [Full Run Example](full-run-example.md) if you want the real ARC retrieval plus the validated SCOPE reflectance run.
+
+If you need a lighter path first, use the [Core Showcase](showcase-experiment.md). It runs on the core dependency set only.
 
 This guide then drops one level lower and walks through the bridge module directly so you can see the raw data structures ARC-SCOPE builds.
 
@@ -12,7 +14,24 @@ pip install arc-scope
 
 This installs the core package with numpy, xarray, scipy, and pandas.
 
-## Step 2: Run the Showcase Experiment
+## Step 2: Run the Full Example
+
+```bash
+pip install "arc-scope[all]"
+scope fetch-upstream --dest ./upstream/SCOPE
+python3 -m arc_scope.experiments.dual_workflow --scope-root-path ./upstream/SCOPE --workflow reflectance --dtype float32 --output-dir ./full-run-output
+```
+
+This writes:
+
+- a shared ARC retrieval bundle
+- one SCOPE input/output pair for the reflectance run
+- a figure suite covering field geometry, retrieval inputs, and simulated outputs
+- `workflow_metrics.csv`
+- `variable_inventory.csv`
+- `index.md`
+
+If you are not ready for the heavy runtime yet, run the core showcase instead:
 
 ```bash
 python3 -m arc_scope.experiments.showcase --output-dir ./showcase-output
@@ -88,12 +107,11 @@ Both DataArrays carry spatial coordinates derived from the GDAL geotransform, an
 
 Once you are comfortable with the showcase and bridge outputs, you can move to optional downstream workflows:
 
-### Full pipeline (requires ARC + SCOPE)
+### Full pipeline configuration notes
 
-See [examples/03_full_pipeline.py](https://github.com/MarcYin/ARCOPE/blob/main/examples/03_full_pipeline.py) for a complete configuration that runs ARC retrieval, weather fetching, and SCOPE simulation end to end.
+See [examples/03_full_pipeline.py](https://github.com/MarcYin/ARCOPE/blob/main/examples/03_full_pipeline.py) for the low-level configuration walkthrough, and [examples/06_dual_workflow_full_run.py](https://github.com/MarcYin/ARCOPE/blob/main/examples/06_dual_workflow_full_run.py) for the docs-grade packaged entry point.
 
 ```bash
-pip install "arc-scope[all]"
 python examples/03_full_pipeline.py
 ```
 

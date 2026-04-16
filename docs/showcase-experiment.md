@@ -1,6 +1,8 @@
-# Showcase Experiment
+# Core Showcase
 
 ## Core-Dependency Showcase: Field Input Assembly for ARC-SCOPE
+
+If you need the full ARC retrieval plus two real SCOPE runs, start with the [Full Run Example](full-run-example.md). This page is the dependency-light fallback.
 
 This page documents the repo's primary in-repo showcase: a deterministic experiment that assembles a SCOPE-shaped input package from ARC-like biophysical arrays, bundled field geometry, bundled local weather, observation geometry, and radiation partitioning.
 

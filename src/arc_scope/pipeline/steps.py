@@ -68,6 +68,7 @@ def retrieve_arc(config: PipelineConfig) -> ArcResult:
         num_samples=config.num_samples,
         growth_season_length=config.growth_season_length,
         S2_data_folder=s2_folder,
+        data_source=config.data_source,
     )
 
     # Recover geotransform and CRS from the saved NPZ
@@ -133,11 +134,14 @@ def build_observation_dataset(
     viewing_zenith: float = 0.0,
     viewing_azimuth: float = 0.0,
     overpass_hour: float = 10.5,
+    duplicate_step_minutes: float = 5.0,
 ) -> xr.Dataset:
     """Build an observation geometry dataset for SCOPE.
 
     Computes solar angles from field location and overpass time, and uses
-    the provided (or default nadir) viewing geometry.
+    the provided (or default nadir) viewing geometry. Repeated acquisitions on
+    the same day are offset by a small, deterministic minute increment so the
+    time index remains unique for SCOPE input preparation.
 
     Parameters
     ----------
@@ -153,6 +157,8 @@ def build_observation_dataset(
         Sensor viewing azimuth angle in degrees.
     overpass_hour:
         Local solar time of satellite overpass (default 10:30 for S2).
+    duplicate_step_minutes:
+        Minute offset applied to repeated same-day acquisitions.
 
     Returns
     -------
@@ -164,8 +170,17 @@ def build_observation_dataset(
     times = []
     szas = []
     saas = []
+    seen_per_day: dict[int, int] = {}
     for doy in doys:
-        dt = datetime(year, 1, 1) + timedelta(days=int(doy) - 1, hours=overpass_hour)
+        day = int(doy)
+        duplicate_index = seen_per_day.get(day, 0)
+        seen_per_day[day] = duplicate_index + 1
+
+        dt = datetime(year, 1, 1) + timedelta(
+            days=day - 1,
+            hours=overpass_hour,
+            minutes=duplicate_index * duplicate_step_minutes,
+        )
         sza, saa = solar_position(lat, lon, dt)
         times.append(np.datetime64(dt))
         szas.append(float(sza))
@@ -288,10 +303,13 @@ def run_scope_simulation(
         import torch
         from scope import SimulationConfig, ScopeGridRunner, campbell_lidf
         from scope.data import ScopeGridDataModule
+        from scope.spectral.fluspect import FluspectModel
     except ImportError:
         raise ImportError(
             "SCOPE and PyTorch are required. Install with: pip install arc-scope[scope]"
         )
+
+    _patch_scope_fluspect_stacked_layers(FluspectModel, torch)
 
     # Determine time bounds from dataset
     times = scope_dataset.coords["time"].values
@@ -337,3 +355,37 @@ def run_scope_simulation(
         varmap=varmap,
         scope_options=config.resolved_scope_options,
     )
+
+
+def _patch_scope_fluspect_stacked_layers(fluspect_model_cls: type, torch_module: Any) -> None:
+    """Patch scope-rtm 0.2.0 to broadcast ``N`` before boolean masking."""
+    if getattr(fluspect_model_cls._stacked_layers, "_arc_scope_patched", False):
+        return
+
+    def _stacked_layers(self, r, t, N):
+        D = torch_module.sqrt(
+            torch_module.clamp(
+                (1 + r + t) * (1 + r - t) * (1 - r + t) * (1 - r - t),
+                min=0.0,
+            )
+        )
+        rq = r**2
+        tq = t**2
+        a = (1 + rq - tq + D) / (2 * r.clamp(min=1e-9))
+        b = (1 - rq + tq + D) / (2 * t.clamp(min=1e-9))
+        N_layers = N.unsqueeze(-1).expand_as(t)
+        bNm1 = b ** (N_layers - 1)
+        bN2 = bNm1**2
+        a2 = a**2
+        denom = a2 * bN2 - 1
+        Rsub = a * (bN2 - 1) / denom
+        Tsub = bNm1 * (a2 - 1) / denom
+        zero_abs = (r + t) >= 1
+        if zero_abs.any():
+            denom_zero = t[zero_abs] + (1 - t[zero_abs]) * (N_layers[zero_abs] - 1)
+            Tsub[zero_abs] = t[zero_abs] / denom_zero
+            Rsub[zero_abs] = 1 - Tsub[zero_abs]
+        return Rsub, Tsub
+
+    _stacked_layers._arc_scope_patched = True
+    fluspect_model_cls._stacked_layers = _stacked_layers

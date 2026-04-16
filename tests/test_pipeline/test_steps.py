@@ -1,6 +1,9 @@
 """Tests for individual pipeline step functions."""
 from __future__ import annotations
 
+import sys
+import types
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -11,6 +14,7 @@ from arc_scope.pipeline.steps import (
     bridge_arc_to_scope,
     build_observation_dataset,
     fetch_weather,
+    retrieve_arc,
 )
 from arc_scope.pipeline.config import PipelineConfig
 
@@ -56,6 +60,19 @@ def test_build_observation_dataset_time_coords():
     for t in times:
         year_str = str(t)[:4]
         assert year_str == "2021"
+
+
+def test_build_observation_dataset_offsets_duplicate_days():
+    """Repeated DOYs should produce unique timestamps for SCOPE alignment."""
+    ds = build_observation_dataset(
+        doys=np.array([150, 150, 151]),
+        year=2021,
+        geojson_path=TEST_FIELD_GEOJSON,
+    )
+    times = ds.indexes["time"]
+    assert times.is_unique
+    assert str(times[0]) == "2021-05-30 10:30:00"
+    assert str(times[1]) == "2021-05-30 10:35:00"
 
 
 # ---------------------------------------------------------------------------
@@ -116,3 +133,33 @@ def test_fetch_weather_unknown_provider_raises():
     )
     with pytest.raises(ValueError, match="Unknown weather provider"):
         fetch_weather(config)
+
+
+def test_retrieve_arc_passes_data_source(tmp_path, monkeypatch):
+    """retrieve_arc should forward config.data_source to ARC."""
+    called: dict[str, object] = {}
+
+    def fake_arc_field(**kwargs):
+        called.update(kwargs)
+        return (
+            np.zeros((1, 15), dtype=np.float64),
+            np.zeros((1, 7, 1), dtype=np.float64),
+            np.zeros((1, 7, 1), dtype=np.float64),
+            np.zeros((1, 1), dtype=bool),
+            np.array([170], dtype=int),
+        )
+
+    monkeypatch.setitem(sys.modules, "arc", types.SimpleNamespace(arc_field=fake_arc_field))
+    config = PipelineConfig(
+        geojson_path=str(TEST_FIELD_GEOJSON),
+        start_date="2021-05-15",
+        end_date="2021-10-01",
+        crop_type="wheat",
+        start_of_season=170,
+        year=2021,
+        data_source="planetary",
+        output_dir=tmp_path,
+    )
+
+    retrieve_arc(config)
+    assert called["data_source"] == "planetary"

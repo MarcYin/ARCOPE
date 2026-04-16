@@ -18,10 +18,13 @@ htmlcov/
 *.nc4
 .env
 .venv/
+.venv*/
+.pixi/
 env/
 venv/
 S2_data/
 output/
+upstream/
 site/
 .DS_Store
 Thumbs.db
@@ -31,3 +34,5 @@ Thumbs.db
 .idea/
 .vscode/
 *.iml
+docs/assets/full-run/index.md
+docs/assets/full-run/artifact_manifest.json

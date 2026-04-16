@@ -9,6 +9,7 @@ on:
       - "pyproject.toml"
       - ".github/workflows/docs-pages.yml"
       - "examples/05_showcase_experiment.py"
+      - "examples/06_dual_workflow_full_run.py"
       - "src/arc_scope/experiments/**"
       - "src/arc_scope/data/**"
   workflow_dispatch:

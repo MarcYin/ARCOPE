@@ -1,45 +1,141 @@
+---
+title: ARC-SCOPE
+icon: material/home-analytics
+hide:
+  - toc
+---
+
 # ARC-SCOPE
 
-ARC-SCOPE connects ARC-style crop parameter retrieval outputs with SCOPE-shaped experiment inputs.
+Bridge ARC crop-state retrieval with SCOPE canopy radiative-transfer simulation for real field-season experiments.
 
-The strongest verified path in this repository today is the **core-dependency showcase experiment**:
+[Open the real full run](full-run-example.md){ .md-button .md-button--primary }
+[Quick start](quickstart.md){ .md-button }
+[Installation](installation.md){ .md-button }
 
-- synthetic ARC-like biophysical and soil arrays
-- bundled field geometry
-- local weather ingestion
-- observation geometry
-- direct/diffuse shortwave partitioning
-- an optional proxy calibration step that demonstrates optimisation mechanics
+!!! success "What is real here"
+    The primary showcase path is a real ARC retrieval for the bundled Belgium field in 2021, paired with real ERA5 forcing, real observation geometry, and a validated SCOPE `reflectance` run.
 
-This docs site does **not** use that showcase to claim a validated full `scope-rtm` run. Full ARC retrieval, SCOPE execution, and ERA5 downloads remain optional downstream integrations.
+!!! info "What is lightweight"
+    The core showcase keeps a dependency-light path for users who want to understand the bridge, weather alignment, radiation partitioning, and optimization mechanics without installing ARC or SCOPE.
 
-## Start Here
+<div class="grid cards" markdown>
 
-1. Read the [Showcase Experiment](showcase-experiment.md) page.
-2. Follow the [Quick Start](quickstart.md) if you want the lower-level bridge entry point.
-3. Use the [Installation Guide](installation.md) to add optional extras for ARC, SCOPE, or ERA5.
+-   :material-satellite-variant: __Real Full Run__
 
-## Verified In-Repo
+    ---
 
-- `arc_scope.bridge.arc_arrays_to_scope_inputs`
-- `arc_scope.pipeline.steps.build_observation_dataset`
-- `arc_scope.weather.LocalProvider`
-- `arc_scope.weather.radiation.partition_shortwave`
-- `arc_scope.optim` parameter containers and scipy-based proxy fitting mechanics
+    Run the full ARC-to-SCOPE pipeline with real retrieval, forcing, geometry, and simulated reflectance outputs.
 
-## Optional Integrations
+    [:octicons-arrow-right-24: Open the full example](full-run-example.md)
 
-- ARC retrieval via `arc-scope[arc]`
-- SCOPE preparation and execution via `arc-scope[scope]`
-- ERA5 download workflows via `arc-scope[weather]`
+-   :material-flask-outline: __Core Showcase__
 
-## Primary Example
+    ---
 
-Run the showcase experiment after installing the core package:
+    Explore the repo-native walkthrough with bundled weather, synthetic ARC-like inputs, and proxy optimization.
 
-```bash
-pip install arc-scope
-python3 -m arc_scope.experiments.showcase --output-dir ./showcase-output
-```
+    [:octicons-arrow-right-24: Open the showcase](showcase-experiment.md)
 
-The packaged module entry point writes a summary JSON file, a flat CSV file of per-date diagnostics, and two SVG charts you can inspect directly.
+-   :material-cog-outline: __Build Your Own__
+
+    ---
+
+    Start from the bridge and pipeline APIs if you want your own field boundary, weather source, or experiment settings.
+
+    [:octicons-arrow-right-24: Open the quick start](quickstart.md)
+
+</div>
+
+## Why ARC-SCOPE Exists
+
+<div class="grid cards" markdown>
+
+-   :material-database-search: __Model stage 1: retrieval__
+
+    ---
+
+    ARC reconstructs crop biophysical state from Sentinel-2 acquisitions over a real field and date range.
+
+-   :material-weather-partly-cloudy: __Model stage 2: forcing__
+
+    ---
+
+    Weather and observation geometry provide the atmospheric and sun-sensor state needed for physically grounded forward simulation.
+
+-   :material-chart-line-variant: __Model stage 3: simulation__
+
+    ---
+
+    SCOPE turns the retrieved crop state into reflectance-oriented outputs that can be inspected as seasonal trajectories and spatial maps.
+
+</div>
+
+## Choose A Path
+
+=== "Heavy runtime"
+
+    Use this when you want the full validated story:
+
+    - real ARC retrieval
+    - real ERA5 weather
+    - real SCOPE reflectance simulation
+    - figure-rich docs assets and report metadata
+
+    ```bash
+    pixi install
+    pixi run fetch-scope-upstream
+    pixi run check-runtime
+    python3 -m arc_scope.experiments.dual_workflow \
+      --scope-root-path ./upstream/SCOPE \
+      --workflow reflectance \
+      --dtype float32 \
+      --output-dir ./full-run-output
+    ```
+
+=== "Core-only"
+
+    Use this when you want fast onboarding without the heavy dependencies:
+
+    - no ARC install
+    - no SCOPE install
+    - bundled local weather
+    - direct bridge and optimization surfaces
+
+    ```bash
+    pip install arc-scope
+    python3 -m arc_scope.experiments.showcase --output-dir ./showcase-output
+    ```
+
+## What You Get
+
+| Surface | What it shows | Best page |
+| --- | --- | --- |
+| Real full run | End-to-end ARC retrieval, weather, geometry, SCOPE reflectance, and report figures | [Real Full Run](full-run-example.md) |
+| Core showcase | Dependency-light walkthrough of the bridge and optimization surfaces | [Core Showcase](showcase-experiment.md) |
+| Step-by-step usage | Lower-level bridge and pipeline usage patterns | [Quick Start](quickstart.md) |
+| Runtime setup | Installation routes for ARC, SCOPE, GDAL, and ERA5 access | [Installation](installation.md) |
+
+## At A Glance
+
+<div class="grid cards" markdown>
+
+-   __Primary validated scenario__
+
+    ---
+
+    Belgium/Flanders test field, wheat crop type, 2021 growing season, ERA5 forcing, SCOPE `reflectance`.
+
+-   __Checked-in docs bundle__
+
+    ---
+
+    The docs ship the generated figure set and lightweight metadata from the real run, so GitHub Pages stays small and fast.
+
+-   __Material site features__
+
+    ---
+
+    This site uses Material navigation, buttons, tabs, icons, admonitions, and figure galleries instead of plain Markdown-only pages.
+
+</div>

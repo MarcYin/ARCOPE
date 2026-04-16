@@ -1,0 +1,2 @@
+workflow,n_input_vars,n_output_vars,n_time_steps,selected_outputs
+reflectance,21,23,53,rsot;rso;rsos;rsod
