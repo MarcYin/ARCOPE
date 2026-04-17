@@ -79,16 +79,17 @@ The Pages workflow regenerates these artifacts before each docs build so the cha
 
 ## Interactive Dashboard
 
-The showcase generates a self-contained Plotly dashboard with tabbed panels for canopy state, radiation partitioning, proxy calibration curves, and residual analysis.
+The showcase generates a single-scroll Plotly dashboard that shows the full causal chain: canopy state drives absorption, radiation provides illumination, their product (scaled by fqe) produces the SIF signal, and the optimiser fits fqe against observations.
 
 [Open interactive dashboard](assets/showcase/dashboard.html){ .md-button .md-button--primary }
 
-The dashboard lets you:
+All plots are visible at once so you can scroll and see the seasonal coupling without switching tabs. The dashboard includes:
 
-- Switch between **Canopy State**, **Radiation**, **Calibration**, and **Residuals** tabs
-- Zoom, pan, and hover on all plots for exact values
-- See the initial vs optimised fit side-by-side with observed data
-- Inspect residuals and the observed-vs-modelled scatter plot
+- **Season overview** with normalised LAI, Rin, and proxy SIF overlaid on a shared axis
+- **Canopy panels** showing LAI, chlorophyll, and leaf water content individually
+- **Radiation partitioning** with direct/diffuse breakdown and clearness fraction
+- **Calibration curve** comparing observed, initial, and optimised proxy SIF
+- **Fit diagnostics** with residual time series and observed-vs-modelled scatter (1:1 line)
 
 ## Radiation Partition
 

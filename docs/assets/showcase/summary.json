@@ -1,12 +1,12 @@
 {
   "n_time_steps": 10,
   "peak_lai": 5.3246,
-  "mean_direct_fraction": 0.10421,
-  "mean_diffuse_fraction": 0.8957900000000001,
+  "mean_direct_fraction": 0.24318,
+  "mean_diffuse_fraction": 0.75682,
   "true_fqe": 0.018,
   "initial_fqe": 0.008,
-  "optimized_fqe": 0.017901954260637638,
-  "rmse_initial": 0.10185883012245356,
-  "rmse_optimized": 0.0025105608567943557,
-  "relative_fqe_error_pct": 0.5446985520131167
+  "optimized_fqe": 0.017917639228347427,
+  "rmse_initial": 0.1133143224049882,
+  "rmse_optimized": 0.002561895664157769,
+  "relative_fqe_error_pct": 0.45755984251428766
 }

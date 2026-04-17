@@ -3,138 +3,181 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ARC-SCOPE Showcase Dashboard</title>
+<title>ARC-SCOPE Showcase</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
-:root { font-family:Inter,system-ui,sans-serif; --bg:#f8fafc; --panel:#fff; --border:#e2e8f0;
-  --text:#0f172a; --muted:#64748b; --accent:#0f766e; }
-body { margin:0; padding:1rem; background:var(--bg); color:var(--text); }
-.shell { max-width:1200px; margin:0 auto; display:grid; gap:0.75rem; }
-.panel { background:var(--panel); border:1px solid var(--border); border-radius:14px;
+:root { font-family:Inter,system-ui,-apple-system,sans-serif;
+  --bg:#f8fafc;--panel:#fff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--accent:#0f766e; }
+*{ box-sizing:border-box; margin:0; }
+body{ background:var(--bg); color:var(--text); padding:1rem; }
+.shell{ max-width:1280px; margin:0 auto; display:grid; gap:0.85rem; }
+.panel{ background:var(--panel); border:1px solid var(--border); border-radius:14px;
   padding:1rem; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
-h1 { font-size:1.4rem; margin:0 0 0.3rem; }
-.subtitle { color:var(--muted); font-size:0.9rem; margin-bottom:0.5rem; }
-.kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:0.5rem; }
-.kpi { text-align:center; padding:0.6rem; }
-.kpi-v { font-size:1.4rem; font-weight:700; color:var(--accent); }
-.kpi-l { font-size:0.72rem; color:var(--muted); margin-top:0.15rem; }
-.row { display:grid; gap:0.75rem; }
-.col-2 { grid-template-columns:1fr 1fr; }
-.plot { min-height:360px; }
-.tabs { display:flex; gap:2px; background:var(--border); border-radius:10px; padding:3px; }
-.tab { padding:0.45rem 0.9rem; border-radius:8px; cursor:pointer; font-size:0.82rem;
-  font-weight:500; border:none; background:transparent; color:var(--muted); }
-.tab.active { background:var(--panel); color:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,0.06); }
-.note { color:var(--muted); font-size:0.82rem; line-height:1.5; margin-top:0.5rem; }
-@media(max-width:800px) { .col-2 { grid-template-columns:1fr; } }
+h1{ font-size:1.35rem; font-weight:700; margin:0; }
+h2{ font-size:0.95rem; font-weight:600; color:var(--muted); text-transform:uppercase;
+  letter-spacing:0.04em; margin:0 0 0.4rem; }
+.sub{ color:var(--muted); font-size:0.85rem; line-height:1.5; }
+.kpis{ display:grid; grid-template-columns:repeat(auto-fill,minmax(115px,1fr)); gap:0.5rem; margin-top:0.6rem; }
+.kpi{ text-align:center; padding:0.5rem 0.3rem; border:1px solid var(--border); border-radius:10px; }
+.kv{ font-size:1.25rem; font-weight:700; color:var(--accent); }
+.kl{ font-size:0.68rem; color:var(--muted); margin-top:0.1rem; }
+.row{ display:grid; gap:0.85rem; }
+.c2{ grid-template-columns:1fr 1fr; }
+.c3{ grid-template-columns:1fr 1fr 1fr; }
+.plot{ min-height:320px; }
+.plot-lg{ min-height:400px; }
+.note{ color:var(--muted); font-size:0.8rem; line-height:1.5; }
+.arrow{ text-align:center; font-size:1.6rem; color:var(--border); padding:0.2rem 0; }
+@media(max-width:860px){ .c2,.c3{ grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 <div class="shell">
+
+  <!-- Header + KPIs -->
   <div class="panel">
-    <h1>ARC-SCOPE Showcase Dashboard</h1>
-    <p class="subtitle">Core-dependency experiment &mdash; synthetic ARC retrieval, local weather, proxy SIF calibration</p>
+    <h1>ARC-SCOPE Showcase</h1>
+    <p class="sub">Synthetic ARC retrieval &rarr; local weather &rarr; radiation partitioning
+    &rarr; proxy SIF model &rarr; parameter optimisation. All plots visible &mdash; scroll to follow the causal chain.</p>
     <div class="kpis">
-      <div class="kpi"><div class="kpi-v">10</div><div class="kpi-l">Timesteps</div></div>
-      <div class="kpi"><div class="kpi-v">5.32</div><div class="kpi-l">Peak LAI</div></div>
-      <div class="kpi"><div class="kpi-v">0.0180</div><div class="kpi-l">True fqe</div></div>
-      <div class="kpi"><div class="kpi-v">0.0179</div><div class="kpi-l">Optimised fqe</div></div>
-      <div class="kpi"><div class="kpi-v">0.5%</div><div class="kpi-l">fqe error</div></div>
-      <div class="kpi"><div class="kpi-v">0.00251</div><div class="kpi-l">Final RMSE</div></div>
+      <div class="kpi"><div class="kv">10</div><div class="kl">Timesteps</div></div>
+      <div class="kpi"><div class="kv">5.32</div><div class="kl">Peak LAI</div></div>
+      <div class="kpi"><div class="kv">24.3%</div><div class="kl">Mean direct frac</div></div>
+      <div class="kpi"><div class="kv">0.0180</div><div class="kl">True fqe</div></div>
+      <div class="kpi"><div class="kv">0.0179</div><div class="kl">Fitted fqe</div></div>
+      <div class="kpi"><div class="kv">0.5%</div><div class="kl">fqe error</div></div>
+      <div class="kpi"><div class="kv">0.1133</div><div class="kl">Initial RMSE</div></div>
+      <div class="kpi"><div class="kv">0.0026</div><div class="kl">Final RMSE</div></div>
     </div>
   </div>
+
+  <!-- 1: Combined overview — LAI + Rin + SIF on shared x-axis -->
   <div class="panel">
-    <div class="tabs">
-      <button class="tab active" onclick="showTab('canopy')">Canopy State</button>
-      <button class="tab" onclick="showTab('radiation')">Radiation</button>
-      <button class="tab" onclick="showTab('calibration')">Calibration</button>
-      <button class="tab" onclick="showTab('residual')">Residuals</button>
-    </div>
+    <h2>1 &middot; Season overview</h2>
+    <p class="note">LAI drives canopy absorption, Rin drives illumination, and their product
+    (scaled by fqe) controls the proxy SIF signal. The three curves share the same time axis
+    so the seasonal coupling is immediately visible.</p>
+    <div id="pOverview" class="plot-lg"></div>
   </div>
-  <div id="tab-canopy">
-    <div class="row col-2">
-      <div class="panel"><div id="pLAI" class="plot"></div></div>
-      <div class="panel"><div id="pCab" class="plot"></div></div>
-    </div>
+
+  <!-- 2: Canopy state -->
+  <div class="panel"><h2>2 &middot; Canopy biophysical inputs</h2></div>
+  <div class="row c3">
+    <div class="panel"><div id="pLAI" class="plot"></div></div>
+    <div class="panel"><div id="pCab" class="plot"></div></div>
+    <div class="panel"><div id="pCw" class="plot"></div></div>
   </div>
-  <div id="tab-radiation" style="display:none">
-    <div class="row col-2">
-      <div class="panel"><div id="pRad" class="plot"></div></div>
-      <div class="panel"><div id="pFrac" class="plot"></div></div>
-    </div>
+
+  <div class="arrow">&darr;</div>
+
+  <!-- 3: Radiation -->
+  <div class="panel"><h2>3 &middot; Radiation partitioning</h2>
+    <p class="note">Total shortwave (Rin) is split into direct beam and diffuse sky components
+    using the BRL clearness-index model. The diffuse fraction controls how much light
+    penetrates deep into the canopy.</p>
   </div>
-  <div id="tab-calibration" style="display:none">
-    <div class="panel"><div id="pSIF" class="plot" style="min-height:420px"></div></div>
-    <p class="note panel">The proxy model is <code>SIF = fqe &times; canopy_absorption &times; water_modifier &times; diffuse_gain &times; heat_penalty &times; illumination / 30</code>.
-    The optimiser adjusts <code>fqe</code> to minimise RMSE against noisy synthetic observations.</p>
+  <div class="row c2">
+    <div class="panel"><div id="pRad" class="plot"></div></div>
+    <div class="panel"><div id="pFrac" class="plot"></div></div>
   </div>
-  <div id="tab-residual" style="display:none">
-    <div class="row col-2">
-      <div class="panel"><div id="pResid" class="plot"></div></div>
-      <div class="panel"><div id="pScatter" class="plot"></div></div>
-    </div>
+
+  <div class="arrow">&darr;</div>
+
+  <!-- 4: Calibration -->
+  <div class="panel"><h2>4 &middot; Proxy SIF calibration</h2>
+    <p class="note">The proxy model generates a SIF-like signal from the canopy and radiation
+    inputs. The optimiser adjusts <code>fqe</code> (fluorescence quantum efficiency) from
+    0.0080 to 0.0179 to match the noisy synthetic observations,
+    reducing RMSE from 0.1133 to 0.00256.</p>
+  </div>
+  <div class="panel"><div id="pSIF" class="plot-lg"></div></div>
+
+  <div class="arrow">&darr;</div>
+
+  <!-- 5: Diagnostics -->
+  <div class="panel"><h2>5 &middot; Fit diagnostics</h2></div>
+  <div class="row c2">
+    <div class="panel"><div id="pResid" class="plot"></div></div>
+    <div class="panel"><div id="pScatter" class="plot"></div></div>
   </div>
 </div>
+
 <script>
-const D=["2021-05-25", "2021-06-02", "2021-06-10", "2021-06-18", "2021-06-26", "2021-07-04", "2021-07-12", "2021-07-20", "2021-07-28", "2021-08-05"],LAI=[0.7138, 1.9435, 3.4181, 4.6396, 5.3246, 5.3246, 4.6396, 3.4181, 1.9435, 0.7138],Cab=[25.125, 33.77, 42.4315, 49.1485, 52.795, 52.795, 49.1485, 42.4315, 33.77, 25.125],Cw=[0.01005, 0.0136, 0.01835, 0.02247, 0.02483, 0.02483, 0.02247, 0.01835, 0.0136, 0.01005],
-  Rin=[420, 470, 525, 590, 645, 635, 585, 530, 465, 395],Dir=[22.499, 32.47, 48.171, 75.79, 109.975, 105.108, 77.47, 54.531, 34.943, 20.814],Dif=[397.501, 437.53, 476.829, 514.21, 535.025, 529.892, 507.53, 475.469, 430.057, 374.186],
-  Obs=[0.03095, 0.0937, 0.16692, 0.23563, 0.28374, 0.27644, 0.22897, 0.16894, 0.08559, 0.02517],Init=[0.01375, 0.04111, 0.07467, 0.10631, 0.12691, 0.12463, 0.10166, 0.0727, 0.03892, 0.01229],Fit=[0.03077, 0.092, 0.1671, 0.23789, 0.284, 0.27888, 0.22748, 0.16269, 0.08708, 0.02751];
-const M={t:40,l:55,r:20,b:40}, C={responsive:true};
+const D=["2021-05-25", "2021-06-02", "2021-06-10", "2021-06-18", "2021-06-26", "2021-07-04", "2021-07-12", "2021-07-20", "2021-07-28", "2021-08-05"];
+const LAI=[0.7138, 1.9435, 3.4181, 4.6396, 5.3246, 5.3246, 4.6396, 3.4181, 1.9435, 0.7138],Cab=[25.125, 33.77, 42.4315, 49.1485, 52.795, 52.795, 49.1485, 42.4315, 33.77, 25.125],Cw=[0.01005, 0.0136, 0.01835, 0.02247, 0.02483, 0.02483, 0.02247, 0.01835, 0.0136, 0.01005];
+const Rin=[567.3, 552.74, 572.94, 617.66, 628.7, 674.4, 660.1, 674.78, 615.74, NaN],Dir=[68.099, 59.683, 67.67, 91.271, 98.929, 135.102, 127.433, 145.948, 105.174, NaN],Dif=[499.201, 493.057, 505.27, 526.389, 529.771, 539.298, 532.667, 528.832, 510.566, NaN];
+const Obs=[0.04005, 0.1073, 0.17916, 0.24371, 0.27681, 0.28705, 0.25226, 0.19633, 0.10603, NaN],Init=[0.0178, 0.04716, 0.08011, 0.1099, 0.12384, 0.12934, 0.11201, 0.08487, 0.048, NaN],Fit=[0.03986, 0.10562, 0.17943, 0.24614, 0.27736, 0.28968, 0.25087, 0.19009, 0.1075, NaN];
+const M={t:36,l:52,r:18,b:36},C={responsive:true,displayModeBar:true,modeBarButtonsToRemove:["lasso2d","select2d"]};
 const frac=Dir.map((d,i)=>Rin[i]>0?d/Rin[i]:0);
-const residInit=Obs.map((o,i)=>o-Init[i]), residFit=Obs.map((o,i)=>o-Fit[i]);
+const residI=Obs.map((o,i)=>o-Init[i]),residF=Obs.map((o,i)=>o-Fit[i]);
+const laiNorm=LAI.map(v=>v/Math.max(...LAI)),rinNorm=Rin.map(v=>v/Math.max(...Rin)),
+      sifNorm=Obs.map(v=>v/Math.max(...Obs));
 
-function showTab(t) {
-  ['canopy','radiation','calibration','residual'].forEach(n=>{
-    document.getElementById('tab-'+n).style.display=n===t?'':'none';
-  });
-  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().includes(t.slice(0,4))));
-  render();
-}
-function render() {
-  Plotly.newPlot('pLAI',[
-    {x:D,y:LAI,mode:'lines+markers',name:'LAI',line:{color:'#0f766e',width:2.5},marker:{size:6}},
-  ],{title:'Leaf Area Index',margin:M,xaxis:{title:'Date'},yaxis:{title:'LAI (m2/m2)'}},C);
+/* 1: Overview — normalised overlay */
+Plotly.newPlot('pOverview',[
+  {x:D,y:laiNorm,mode:'lines+markers',name:'LAI (norm)',line:{color:'#15803d',width:2.5},marker:{size:5}},
+  {x:D,y:rinNorm,mode:'lines+markers',name:'Rin (norm)',line:{color:'#ea580c',width:2.5},marker:{size:5}},
+  {x:D,y:sifNorm,mode:'lines+markers',name:'Proxy SIF (norm)',line:{color:'#7c3aed',width:3},marker:{size:7}},
+],{title:'Normalised season overview: canopy &times; radiation &rarr; SIF',
+  margin:{...M,t:42},xaxis:{title:'Date'},yaxis:{title:'Normalised (0-1)',range:[-0.05,1.1]},
+  legend:{orientation:'h',y:1.12}},C);
 
-  Plotly.newPlot('pCab',[
-    {x:D,y:Cab,mode:'lines+markers',name:'Cab',line:{color:'#2563eb',width:2.5},marker:{size:6}},
-    {x:D,y:Cw.map(v=>v*1000),mode:'lines+markers',name:'Cw (x1000)',yaxis:'y2',line:{color:'#ea580c',width:2},marker:{size:5}},
-  ],{title:'Chlorophyll & Water',margin:{...M,r:55},xaxis:{title:'Date'},
-    yaxis:{title:'Cab (ug/cm2)',titlefont:{color:'#2563eb'}},
-    yaxis2:{title:'Cw x1000',overlaying:'y',side:'right',titlefont:{color:'#ea580c'}},
-    legend:{orientation:'h',y:-0.15}},C);
+/* 2: Canopy — individual panels */
+Plotly.newPlot('pLAI',[{x:D,y:LAI,mode:'lines+markers',line:{color:'#15803d',width:2.5},
+  marker:{size:7},fill:'tozeroy',fillcolor:'rgba(21,128,61,0.08)'}],
+  {title:'LAI',margin:M,yaxis:{title:'m²/m²'}},C);
+Plotly.newPlot('pCab',[{x:D,y:Cab,mode:'lines+markers',line:{color:'#2563eb',width:2.5},
+  marker:{size:7},fill:'tozeroy',fillcolor:'rgba(37,99,235,0.08)'}],
+  {title:'Chlorophyll a+b',margin:M,yaxis:{title:'µg/cm²'}},C);
+Plotly.newPlot('pCw',[{x:D,y:Cw,mode:'lines+markers',line:{color:'#0891b2',width:2.5},
+  marker:{size:7},fill:'tozeroy',fillcolor:'rgba(8,145,178,0.08)'}],
+  {title:'Leaf water content',margin:M,yaxis:{title:'g/cm²'}},C);
 
-  Plotly.newPlot('pRad',[
-    {x:D,y:Dir,mode:'lines+markers',name:'Direct',line:{color:'#c2410c',width:2.5},marker:{size:6},fill:'tozeroy',fillcolor:'rgba(194,65,12,0.1)'},
-    {x:D,y:Dif,mode:'lines+markers',name:'Diffuse',line:{color:'#2563eb',width:2.5},marker:{size:6},fill:'tozeroy',fillcolor:'rgba(37,99,235,0.1)'},
-  ],{title:'Shortwave Radiation Partitioning',margin:M,xaxis:{title:'Date'},yaxis:{title:'W/m2'},legend:{orientation:'h',y:-0.15}},C);
+/* 3: Radiation */
+Plotly.newPlot('pRad',[
+  {x:D,y:Rin,mode:'lines+markers',name:'Total Rin',line:{color:'#475569',width:1.5,dash:'dot'},marker:{size:4}},
+  {x:D,y:Dir,mode:'lines+markers',name:'Direct',line:{color:'#c2410c',width:2.5},marker:{size:6},
+    fill:'tozeroy',fillcolor:'rgba(194,65,12,0.12)'},
+  {x:D,y:Dif,mode:'lines+markers',name:'Diffuse',line:{color:'#2563eb',width:2.5},marker:{size:6},
+    fill:'tozeroy',fillcolor:'rgba(37,99,235,0.08)'},
+],{title:'Shortwave radiation',margin:M,yaxis:{title:'W/m²'},legend:{orientation:'h',y:1.08}},C);
 
-  Plotly.newPlot('pFrac',[
-    {x:D,y:frac,mode:'lines+markers',name:'Direct fraction',line:{color:'#7c3aed',width:2.5},marker:{size:6}},
-  ],{title:'Direct Fraction of Total Shortwave',margin:M,xaxis:{title:'Date'},yaxis:{title:'Fraction',range:[0,1]}},C);
+Plotly.newPlot('pFrac',[
+  {x:D,y:frac,mode:'lines+markers',name:'Direct / Total',line:{color:'#7c3aed',width:2.5},
+    marker:{size:7},fill:'tozeroy',fillcolor:'rgba(124,58,237,0.08)'},
+],{title:'Direct fraction',margin:M,yaxis:{title:'Fraction',range:[0,0.35]}},C);
 
-  Plotly.newPlot('pSIF',[
-    {x:D,y:Obs,mode:'markers',name:'Observed',marker:{size:10,color:'#111827',symbol:'circle-open',line:{width:2}}},
-    {x:D,y:Init,mode:'lines+markers',name:'Initial (fqe=0.0080)',line:{color:'#dc2626',width:2,dash:'dash'},marker:{size:5}},
-    {x:D,y:Fit,mode:'lines+markers',name:'Optimised (fqe=0.0179)',line:{color:'#16a34a',width:3},marker:{size:6}},
-  ],{title:'Proxy SIF Calibration',margin:M,xaxis:{title:'Date'},yaxis:{title:'Proxy SIF (a.u.)'},
-    legend:{orientation:'h',y:-0.12}},C);
+/* 4: Calibration */
+Plotly.newPlot('pSIF',[
+  {x:D,y:Obs,mode:'markers',name:'Observed (noisy)',marker:{size:11,color:'#111827',symbol:'circle-open',line:{width:2.5}}},
+  {x:D,y:Init,mode:'lines+markers',name:'Initial (fqe=0.0080)',
+    line:{color:'#dc2626',width:2,dash:'dash'},marker:{size:5}},
+  {x:D,y:Fit,mode:'lines+markers',name:'Optimised (fqe=0.0179)',
+    line:{color:'#16a34a',width:3},marker:{size:7}},
+],{title:'Proxy SIF: observed vs modelled',margin:{...M,t:42},
+  xaxis:{title:'Date'},yaxis:{title:'Proxy SIF (a.u.)'},
+  legend:{orientation:'h',y:1.12}},C);
 
-  Plotly.newPlot('pResid',[
-    {x:D,y:residInit,mode:'lines+markers',name:'Initial residual',line:{color:'#dc2626',width:2},marker:{size:5}},
-    {x:D,y:residFit,mode:'lines+markers',name:'Fitted residual',line:{color:'#16a34a',width:2},marker:{size:5}},
-    {x:D,y:D.map(()=>0),mode:'lines',line:{color:'#94a3b8',dash:'dash',width:1},showlegend:false},
-  ],{title:'Residuals (Observed - Modelled)',margin:M,xaxis:{title:'Date'},yaxis:{title:'Residual'},
-    legend:{orientation:'h',y:-0.15}},C);
+/* 5: Diagnostics */
+Plotly.newPlot('pResid',[
+  {x:D,y:residI,mode:'lines+markers',name:'Initial',line:{color:'#dc2626',width:2},marker:{size:5}},
+  {x:D,y:residF,mode:'lines+markers',name:'Optimised',line:{color:'#16a34a',width:2.5},marker:{size:6}},
+  {x:D,y:D.map(()=>0),mode:'lines',line:{color:'#94a3b8',dash:'dash',width:1},showlegend:false},
+],{title:'Residuals (obs − model)',margin:M,yaxis:{title:'Residual',zeroline:true},
+  legend:{orientation:'h',y:1.08}},C);
 
-  Plotly.newPlot('pScatter',[
-    {x:Obs,y:Fit,mode:'markers',name:'Optimised',marker:{size:8,color:'#16a34a'}},
-    {x:Obs,y:Init,mode:'markers',name:'Initial',marker:{size:7,color:'#dc2626',symbol:'x'}},
-    {x:[Math.min(...Obs),Math.max(...Obs)],y:[Math.min(...Obs),Math.max(...Obs)],mode:'lines',
-      line:{color:'#94a3b8',dash:'dash',width:1},showlegend:false},
-  ],{title:'Observed vs Modelled',margin:M,xaxis:{title:'Observed'},yaxis:{title:'Modelled'},
-    legend:{orientation:'h',y:-0.15}},C);
-}
-render();
+const lo=Math.min(...Obs,...Init,...Fit)*0.9, hi=Math.max(...Obs,...Init,...Fit)*1.1;
+Plotly.newPlot('pScatter',[
+  {x:Obs,y:Fit,mode:'markers',name:'Optimised',
+    marker:{size:10,color:'#16a34a',line:{width:1,color:'#15803d'}},
+    hovertemplate:'obs=%{x:.4f}<br>fit=%{y:.4f}<extra></extra>'},
+  {x:Obs,y:Init,mode:'markers',name:'Initial',
+    marker:{size:8,color:'#dc2626',symbol:'x',line:{width:1.5}},
+    hovertemplate:'obs=%{x:.4f}<br>init=%{y:.4f}<extra></extra>'},
+  {x:[lo,hi],y:[lo,hi],mode:'lines',line:{color:'#94a3b8',dash:'dash',width:1},showlegend:false},
+],{title:'Observed vs modelled (1:1 line)',margin:M,
+  xaxis:{title:'Observed',range:[lo,hi]},yaxis:{title:'Modelled',range:[lo,hi],scaleanchor:'x'},
+  legend:{orientation:'h',y:1.08}},C);
 </script>
 </body>
 </html>

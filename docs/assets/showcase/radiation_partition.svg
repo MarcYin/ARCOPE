@@ -4,15 +4,15 @@
 <text class="tick" x="72" y="344">Time step</text>
 <text class="tick" transform="translate(20 166.0) rotate(-90)">Radiation (W m-2)</text>
 <line class="grid" x1="72" y1="290.00" x2="892" y2="290.00" />
-<text class="tick" x="62" y="294.00" text-anchor="end">-20.32</text>
+<text class="tick" x="62" y="294.00" text-anchor="end">21.31</text>
 <line class="grid" x1="72" y1="228.00" x2="892" y2="228.00" />
-<text class="tick" x="62" y="232.00" text-anchor="end">128.80</text>
+<text class="tick" x="62" y="232.00" text-anchor="end">160.40</text>
 <line class="grid" x1="72" y1="166.00" x2="892" y2="166.00" />
-<text class="tick" x="62" y="170.00" text-anchor="end">277.92</text>
+<text class="tick" x="62" y="170.00" text-anchor="end">299.49</text>
 <line class="grid" x1="72" y1="104.00" x2="892" y2="104.00" />
-<text class="tick" x="62" y="108.00" text-anchor="end">427.04</text>
+<text class="tick" x="62" y="108.00" text-anchor="end">438.58</text>
 <line class="grid" x1="72" y1="42.00" x2="892" y2="42.00" />
-<text class="tick" x="62" y="46.00" text-anchor="end">576.16</text>
+<text class="tick" x="62" y="46.00" text-anchor="end">577.67</text>
 <line class="axis" x1="72" y1="42" x2="72" y2="290" />
 <line class="axis" x1="72" y1="290" x2="892" y2="290" />
 <line class="grid" x1="72.00" y1="42" x2="72.00" y2="290" />
@@ -35,30 +35,30 @@
 <text class="tick" x="800.89" y="318" text-anchor="middle">2021-07-28</text>
 <line class="grid" x1="892.00" y1="42" x2="892.00" y2="290" />
 <text class="tick" x="892.00" y="318" text-anchor="middle">2021-08-05</text>
-<polyline fill="none" stroke="#c2410c" stroke-width="3" points="72.00,272.20 163.11,268.05 254.22,261.52 345.33,250.04 436.44,235.83 527.56,237.85 618.67,249.34 709.78,258.88 800.89,267.02 892.00,272.90" />
-<circle cx="72.00" cy="272.20" r="3.5" fill="#c2410c" />
-<circle cx="163.11" cy="268.05" r="3.5" fill="#c2410c" />
-<circle cx="254.22" cy="261.52" r="3.5" fill="#c2410c" />
-<circle cx="345.33" cy="250.04" r="3.5" fill="#c2410c" />
-<circle cx="436.44" cy="235.83" r="3.5" fill="#c2410c" />
-<circle cx="527.56" cy="237.85" r="3.5" fill="#c2410c" />
-<circle cx="618.67" cy="249.34" r="3.5" fill="#c2410c" />
-<circle cx="709.78" cy="258.88" r="3.5" fill="#c2410c" />
-<circle cx="800.89" cy="267.02" r="3.5" fill="#c2410c" />
-<circle cx="892.00" cy="272.90" r="3.5" fill="#c2410c" />
+<polyline fill="none" stroke="#c2410c" stroke-width="3" points="72.00,269.15 163.11,272.90 254.22,269.34 345.33,258.82 436.44,255.40 527.56,239.28 618.67,242.70 709.78,234.44 800.89,252.62 892.00,nan" />
+<circle cx="72.00" cy="269.15" r="3.5" fill="#c2410c" />
+<circle cx="163.11" cy="272.90" r="3.5" fill="#c2410c" />
+<circle cx="254.22" cy="269.34" r="3.5" fill="#c2410c" />
+<circle cx="345.33" cy="258.82" r="3.5" fill="#c2410c" />
+<circle cx="436.44" cy="255.40" r="3.5" fill="#c2410c" />
+<circle cx="527.56" cy="239.28" r="3.5" fill="#c2410c" />
+<circle cx="618.67" cy="242.70" r="3.5" fill="#c2410c" />
+<circle cx="709.78" cy="234.44" r="3.5" fill="#c2410c" />
+<circle cx="800.89" cy="252.62" r="3.5" fill="#c2410c" />
+<circle cx="892.00" cy="nan" r="3.5" fill="#c2410c" />
 <line x1="682" y1="24" x2="702" y2="24" stroke="#c2410c" stroke-width="3" />
 <text class="legend" x="710" y="28">Direct shortwave</text>
-<polyline fill="none" stroke="#2563eb" stroke-width="3" points="72.00,116.28 163.11,99.64 254.22,83.30 345.33,67.76 436.44,59.10 527.56,61.24 618.67,70.54 709.78,83.86 800.89,102.75 892.00,125.98" />
-<circle cx="72.00" cy="116.28" r="3.5" fill="#2563eb" />
-<circle cx="163.11" cy="99.64" r="3.5" fill="#2563eb" />
-<circle cx="254.22" cy="83.30" r="3.5" fill="#2563eb" />
-<circle cx="345.33" cy="67.76" r="3.5" fill="#2563eb" />
-<circle cx="436.44" cy="59.10" r="3.5" fill="#2563eb" />
-<circle cx="527.56" cy="61.24" r="3.5" fill="#2563eb" />
-<circle cx="618.67" cy="70.54" r="3.5" fill="#2563eb" />
-<circle cx="709.78" cy="83.86" r="3.5" fill="#2563eb" />
-<circle cx="800.89" cy="102.75" r="3.5" fill="#2563eb" />
-<circle cx="892.00" cy="125.98" r="3.5" fill="#2563eb" />
+<polyline fill="none" stroke="#2563eb" stroke-width="3" points="72.00,76.98 163.11,79.72 254.22,74.27 345.33,64.86 436.44,63.35 527.56,59.10 618.67,62.06 709.78,63.77 800.89,71.91 892.00,nan" />
+<circle cx="72.00" cy="76.98" r="3.5" fill="#2563eb" />
+<circle cx="163.11" cy="79.72" r="3.5" fill="#2563eb" />
+<circle cx="254.22" cy="74.27" r="3.5" fill="#2563eb" />
+<circle cx="345.33" cy="64.86" r="3.5" fill="#2563eb" />
+<circle cx="436.44" cy="63.35" r="3.5" fill="#2563eb" />
+<circle cx="527.56" cy="59.10" r="3.5" fill="#2563eb" />
+<circle cx="618.67" cy="62.06" r="3.5" fill="#2563eb" />
+<circle cx="709.78" cy="63.77" r="3.5" fill="#2563eb" />
+<circle cx="800.89" cy="71.91" r="3.5" fill="#2563eb" />
+<circle cx="892.00" cy="nan" r="3.5" fill="#2563eb" />
 <line x1="682" y1="42" x2="702" y2="42" stroke="#2563eb" stroke-width="3" />
 <text class="legend" x="710" y="46">Diffuse shortwave</text>
 </svg>
