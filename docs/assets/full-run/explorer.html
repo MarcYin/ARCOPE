@@ -17,41 +17,30 @@
     [data-theme="dark"] {
       --bg: #0f172a; --panel: #1e293b; --border: #334155;
       --text: #f1f5f9; --muted: #94a3b8; --accent: #2dd4bf;
-      --accent-light: #134e4a;
-      color-scheme: dark;
+      --accent-light: #134e4a; color-scheme: dark;
     }
     * { box-sizing: border-box; margin: 0; }
     body { background: var(--bg); color: var(--text); padding: 0.75rem; }
     .shell { max-width: 1600px; margin: 0 auto; display: grid; gap: 0.75rem; }
-
-    /* Header */
     .header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
     .header h1 { font-size: 1.3rem; font-weight: 700; }
-    .header-actions { display: flex; gap: 0.5rem; align-items: center; }
-
-    /* Tabs */
+    .header-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
     .tabs { display: flex; gap: 2px; background: var(--border); border-radius: 12px; padding: 3px; overflow-x: auto; }
     .tab { padding: 0.5rem 1rem; border-radius: 10px; cursor: pointer; font-size: 0.85rem;
-           font-weight: 500; white-space: nowrap; transition: all 0.15s; background: transparent; color: var(--muted);
-           border: none; }
+           font-weight: 500; white-space: nowrap; transition: all 0.15s; background: transparent; color: var(--muted); border: none; }
     .tab.active { background: var(--panel); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
     .tab:hover:not(.active) { color: var(--text); }
-
-    /* Panels */
     .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
              padding: 0.9rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
     .panel-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
                    color: var(--muted); margin-bottom: 0.5rem; }
-
-    /* Controls */
     .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; }
     .control { display: grid; gap: 0.25rem; }
     .control label { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
     select, input[type="number"] {
       font: inherit; font-size: 0.85rem; padding: 0.4rem 0.6rem; border-radius: 8px;
-      border: 1px solid var(--border); background: var(--panel); color: var(--text);
-    }
-    select { min-width: 140px; }
+      border: 1px solid var(--border); background: var(--panel); color: var(--text); }
+    select { min-width: 130px; }
     .btn { padding: 0.4rem 0.75rem; border-radius: 8px; border: 1px solid var(--border);
            background: var(--panel); color: var(--text); cursor: pointer; font-size: 0.8rem;
            font-weight: 500; transition: all 0.15s; }
@@ -60,21 +49,15 @@
     .btn-sm { padding: 0.3rem 0.55rem; font-size: 0.75rem; }
     .toggle { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
     .toggle input { accent-color: var(--accent); }
-
-    /* KPI cards */
-    .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.5rem; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem; }
     .kpi { text-align: center; padding: 0.6rem 0.4rem; }
     .kpi-value { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
     .kpi-label { font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }
-
-    /* Pixel pins */
     .pins { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem; }
     .pin { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.5rem;
            border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; }
     .pin .remove { font-size: 0.65rem; opacity: 0.6; }
     .pin .remove:hover { opacity: 1; }
-
-    /* Layouts */
     .row { display: grid; gap: 0.75rem; }
     .col-2 { grid-template-columns: 1fr 1fr; }
     .col-3 { grid-template-columns: 1fr 1fr 1fr; }
@@ -83,35 +66,35 @@
     .plot-tall { min-height: 420px; }
     .plot-short { min-height: 260px; }
     .hidden { display: none !important; }
-
-    /* Stats table */
     .stats-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
     .stats-table th, .stats-table td { padding: 0.35rem 0.5rem; text-align: right; border-bottom: 1px solid var(--border); }
     .stats-table th { text-align: left; font-weight: 600; color: var(--muted); }
     .stats-table td:first-child { text-align: left; font-weight: 500; }
-
-    /* Info bar */
     .info-bar { display: flex; flex-wrap: wrap; gap: 0.7rem; font-size: 0.82rem; color: var(--muted); align-items: center; }
     .info-bar strong { color: var(--text); }
-
-    @media (max-width: 900px) {
-      .col-2, .col-3, .col-map { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 900px) { .col-2, .col-3, .col-map { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
 <div class="shell">
-
-  <!-- Header -->
   <div class="panel header">
     <h1>ARC-SCOPE Explorer</h1>
     <div class="header-actions">
-      <label class="toggle"><input type="checkbox" id="interpToggle">Daily interpolation</label>
+      <button class="btn btn-sm" id="playBtn" title="Animate through dates">&#9654; Play</button>
+      <label class="toggle"><input type="checkbox" id="lockCscale">Lock color range</label>
+      <div class="control" style="flex-direction:row;gap:0.3rem;align-items:center">
+        <label style="font-size:0.75rem;color:var(--muted)">Colormap</label>
+        <select id="cmapSel" style="min-width:90px;padding:0.25rem 0.4rem;font-size:0.78rem">
+          <option>Viridis</option><option>Magma</option><option>Cividis</option><option>Inferno</option>
+          <option>YlGnBu</option><option>RdYlGn</option><option>Spectral</option><option>Hot</option>
+        </select>
+      </div>
+      <label class="toggle"><input type="checkbox" id="interpToggle">Daily interp</label>
+      <button class="btn btn-sm" id="exportBtn" title="Download CSV for pinned pixel">CSV</button>
       <button class="btn btn-sm" id="themeBtn" title="Toggle dark mode">Dark</button>
     </div>
   </div>
 
-  <!-- Tabs -->
   <div class="tabs" id="tabBar">
     <button class="tab active" data-tab="overview">Overview</button>
     <button class="tab" data-tab="spatial">Spatial</button>
@@ -120,7 +103,6 @@
     <button class="tab" data-tab="compare">Compare</button>
   </div>
 
-  <!-- Controls -->
   <div class="panel">
     <div class="controls">
       <div class="control"><label>Group</label><select id="groupSel"></select></div>
@@ -149,8 +131,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Tab: Spatial -->
   <div id="tab-spatial" class="hidden">
     <div class="row col-2">
       <div class="panel"><div id="spMap1" class="plot-tall"></div></div>
@@ -158,8 +138,6 @@
     </div>
     <div class="panel" style="margin-top:0.75rem"><div id="spDiff" class="plot-short"></div></div>
   </div>
-
-  <!-- Tab: Time Series -->
   <div id="tab-temporal" class="hidden">
     <div class="panel"><div id="tsMain" class="plot-tall"></div></div>
     <div class="row col-2" style="margin-top:0.75rem">
@@ -167,8 +145,6 @@
       <div class="panel"><div id="tsScatter" class="plot"></div></div>
     </div>
   </div>
-
-  <!-- Tab: Spectra -->
   <div id="tab-spectral" class="hidden">
     <div class="panel"><div id="specMain" class="plot-tall"></div></div>
     <div class="row col-2" style="margin-top:0.75rem">
@@ -176,8 +152,6 @@
       <div class="panel"><div id="specMultiPixel" class="plot"></div></div>
     </div>
   </div>
-
-  <!-- Tab: Compare -->
   <div id="tab-compare" class="hidden">
     <div class="row col-2">
       <div class="panel"><div id="cmpMap1" class="plot-tall"></div></div>
@@ -191,422 +165,390 @@
 </div>
 
 <script>
-const PIN_COLORS = ["#0f766e","#2563eb","#ea580c","#7c3aed","#dc2626","#ca8a04"];
-const PLOTLY_CFG = { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ["lasso2d","select2d"] };
-const MARGIN = { t: 40, l: 55, r: 20, b: 40 };
-const S = { payload: null, group: null, key: null, key2: null, pins: [{y:0,x:0}], activeTab: "overview",
-            validIdx: [], validTimes: [] };
+const PIN_COLORS=["#0f766e","#2563eb","#ea580c","#7c3aed","#dc2626","#ca8a04"];
+const PLOTLY_CFG={responsive:true,displayModeBar:true,modeBarButtonsToRemove:["lasso2d","select2d"]};
+const MARGIN={t:40,l:55,r:20,b:40};
+const S={payload:null,group:null,key:null,key2:null,pins:[{y:0,x:0}],activeTab:"overview",
+          validIdx:[],validTimes:[],animTimer:null,cscaleLock:null};
 
-/* ───── Helpers ───── */
-const $ = id => document.getElementById(id);
-const groupSel=$("groupSel"), varSel=$("varSel"), dateSel=$("dateSel"), bandSel=$("bandSel");
-const var2Sel=$("var2Sel"), interpToggle=$("interpToggle");
+const $=id=>document.getElementById(id);
+const groupSel=$("groupSel"),varSel=$("varSel"),dateSel=$("dateSel"),bandSel=$("bandSel");
+const var2Sel=$("var2Sel"),interpToggle=$("interpToggle"),lockCscale=$("lockCscale"),cmapSel=$("cmapSel");
 
-function entry(k)  { return k ? S.payload.variables[k] : null; }
-function curEntry() { return entry(S.key); }
-
-/* Test whether time index t has at least one finite pixel */
-function _sliceHasData(e, t) {
-  for(let y=0;y<e.data.length;y++)
-    for(let x=0;x<e.data[y].length;x++) {
-      const cell=e.data[y][x];
-      if(e.axis_name) { for(const v of cell[t]) if(v!=null&&isFinite(v)) return true; }
-      else { if(cell[t]!=null&&isFinite(cell[t])) return true; }
-    }
-  return false;
+function entry(k){return k?S.payload.variables[k]:null;}
+function curEntry(){return entry(S.key);}
+function _sliceHasData(e,t){
+  for(let y=0;y<e.data.length;y++)for(let x=0;x<e.data[y].length;x++){
+    const c=e.data[y][x];
+    if(e.axis_name){for(const v of c[t])if(v!=null&&isFinite(v))return true;}
+    else{if(c[t]!=null&&isFinite(c[t]))return true;}
+  }return false;
 }
-/* Compute valid (non-empty) time indices for the current variable and cache them */
-function computeValidDates(e) {
-  S.validIdx=[]; S.validTimes=[];
-  for(let t=0;t<e.coords.time.length;t++) {
-    if(_sliceHasData(e,t)) { S.validIdx.push(t); S.validTimes.push(e.coords.time[t]); }
-  }
-  if(!S.validIdx.length) { S.validIdx=e.coords.time.map((_,i)=>i); S.validTimes=e.coords.time.slice(); }
+function computeValidDates(e){
+  S.validIdx=[];S.validTimes=[];
+  for(let t=0;t<e.coords.time.length;t++)if(_sliceHasData(e,t)){S.validIdx.push(t);S.validTimes.push(e.coords.time[t]);}
+  if(!S.validIdx.length){S.validIdx=e.coords.time.map((_,i)=>i);S.validTimes=e.coords.time.slice();}
 }
-/* Map dropdown index → original time index */
-function di(e)     { const si=dateSel.selectedIndex>=0?dateSel.selectedIndex:0; return S.validIdx[Math.min(si,S.validIdx.length-1)]||0; }
-function bi(e)     { return e.axis_name ? Math.min(bandSel.selectedIndex>=0?bandSel.selectedIndex:0, e.coords[e.axis_name].length-1) : 0; }
-function valAt(e,y,x,t,b)   { const p=e.data[y][x]; return e.axis_name ? p[t][b] : p[t]; }
-/* Return a series keeping only valid dates */
-function seriesAt(e,y,x,b)  { const p=e.data[y][x]; return S.validIdx.map(t=> e.axis_name ? p[t][b] : p[t]); }
-function specAt(e,y,x,t)    { return e.axis_name ? e.data[y][x][t] : null; }
-function mapVals(e,t,b)     { return e.data.map(r=>r.map(c=>e.axis_name?c[t][b]:c[t])); }
-function flatVals(z)        { return z.flat().filter(v=>v!=null&&isFinite(v)); }
-
-function interpDaily(xs,ys) {
-  if(!interpToggle.checked||xs.length<2) return {xs,ys};
-  const day=864e5, out={xs:[],ys:[]};
-  let c=xs[0],s=0;
-  while(c<=xs[xs.length-1]) {
-    while(s<xs.length-2&&c>xs[s+1]) s++;
+function di(e){const si=dateSel.selectedIndex>=0?dateSel.selectedIndex:0;return S.validIdx[Math.min(si,S.validIdx.length-1)]||0;}
+function bi(e){return e.axis_name?Math.min(bandSel.selectedIndex>=0?bandSel.selectedIndex:0,e.coords[e.axis_name].length-1):0;}
+function valAt(e,y,x,t,b){const p=e.data[y][x];return e.axis_name?p[t][b]:p[t];}
+function seriesAt(e,y,x,b){const p=e.data[y][x];return S.validIdx.map(t=>e.axis_name?p[t][b]:p[t]);}
+function specAt(e,y,x,t){return e.axis_name?e.data[y][x][t]:null;}
+function mapVals(e,t,b){return e.data.map(r=>r.map(c=>e.axis_name?c[t][b]:c[t]));}
+function flatVals(z){return z.flat().filter(v=>v!=null&&isFinite(v));}
+function interpDaily(xs,ys){
+  if(!interpToggle.checked||xs.length<2)return{xs,ys};
+  const day=864e5,out={xs:[],ys:[]};let c=xs[0],s=0;
+  while(c<=xs[xs.length-1]){while(s<xs.length-2&&c>xs[s+1])s++;
     const f=xs[s+1]===xs[s]?0:(c-xs[s])/(xs[s+1]-xs[s]);
-    out.xs.push(c); out.ys.push(ys[s]+f*(ys[Math.min(s+1,ys.length-1)]-ys[s]));
-    c+=day;
-  }
+    out.xs.push(c);out.ys.push(ys[s]+f*(ys[Math.min(s+1,ys.length-1)]-ys[s]));c+=day;}
   return out;
 }
-function numDates(ts) { return ts.map(t=>new Date(t+"T00:00:00Z").getTime()); }
-function stats(arr) {
-  const f=arr.filter(v=>isFinite(v));
-  if(!f.length) return {min:NaN,max:NaN,mean:NaN,std:NaN,n:0};
-  const n=f.length, mean=f.reduce((a,b)=>a+b,0)/n;
-  const std=Math.sqrt(f.reduce((a,b)=>a+(b-mean)**2,0)/n);
-  return {min:Math.min(...f),max:Math.max(...f),mean,std,n};
+function numDates(ts){return ts.map(t=>new Date(t+"T00:00:00Z").getTime());}
+function stats(arr){
+  const f=arr.filter(v=>isFinite(v));if(!f.length)return{min:NaN,max:NaN,mean:NaN,std:NaN,n:0};
+  const n=f.length,mean=f.reduce((a,b)=>a+b,0)/n;
+  return{min:Math.min(...f),max:Math.max(...f),mean,std:Math.sqrt(f.reduce((a,b)=>a+(b-mean)**2,0)/n),n};
+}
+function cmap(){return cmapSel.value;}
+/* Compute global color range across all valid dates for lock mode */
+function globalRange(e,bx){
+  if(!lockCscale.checked)return{};
+  if(S.cscaleLock)return{zmin:S.cscaleLock[0],zmax:S.cscaleLock[1]};
+  let lo=Infinity,hi=-Infinity;
+  for(const t of S.validIdx){const fv=flatVals(mapVals(e,t,bx));if(fv.length){lo=Math.min(lo,Math.min(...fv));hi=Math.max(hi,Math.max(...fv));}}
+  S.cscaleLock=[lo,hi];return{zmin:lo,zmax:hi};
+}
+
+/* ───── Animation ───── */
+function toggleAnimation(){
+  if(S.animTimer){clearInterval(S.animTimer);S.animTimer=null;$("playBtn").innerHTML="&#9654; Play";return;}
+  $("playBtn").innerHTML="&#9724; Stop";
+  S.animTimer=setInterval(()=>{
+    let idx=dateSel.selectedIndex+1;if(idx>=S.validTimes.length)idx=0;
+    dateSel.selectedIndex=idx;render();
+  },600);
+}
+
+/* ───── Export CSV ───── */
+function exportCSV(){
+  const e=curEntry();if(!e)return;const bx=bi(e),px=S.pins[0];
+  const header=["date",e.label];
+  const rows=S.validTimes.map((t,i)=>{
+    const v=valAt(e,px.y,px.x,S.validIdx[i],bx);
+    return `${t},${v!=null?v:""}`;
+  });
+  const csv=header.join(",")+"\n"+rows.join("\n");
+  const blob=new Blob([csv],{type:"text/csv"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=`${e.key.replace(/[^a-zA-Z0-9]/g,"_")}_P${px.y}_${px.x}.csv`;a.click();
+}
+
+/* ───── URL state ───── */
+function pushState(){
+  const p=new URLSearchParams();
+  p.set("tab",S.activeTab);p.set("key",S.key);
+  if(dateSel.selectedIndex>=0)p.set("di",dateSel.selectedIndex);
+  if(bandSel.selectedIndex>=0&&!bandSel.disabled)p.set("bi",bandSel.selectedIndex);
+  p.set("py",S.pins[0].y);p.set("px",S.pins[0].x);
+  if(S.key2)p.set("key2",S.key2);
+  history.replaceState(null,"",location.pathname+"?"+p.toString());
+}
+function restoreState(params){
+  if(params.get("key")&&S.payload.variables[params.get("key")]){
+    S.key=params.get("key");S.group=S.payload.variables[S.key].group;groupSel.value=S.group;
+  }
+  if(params.get("key2"))S.key2=params.get("key2");
+  buildVars();buildDateBand();
+  if(params.get("di"))dateSel.selectedIndex=parseInt(params.get("di"))||0;
+  if(params.get("bi"))bandSel.selectedIndex=parseInt(params.get("bi"))||0;
+  const py=parseInt(params.get("py"))||0,px=parseInt(params.get("px"))||0;
+  S.pins[0]={y:py,x:px};buildPins();
+  if(params.get("tab"))switchTab(params.get("tab"));else render();
 }
 
 /* ───── UI builders ───── */
-function buildGroups() {
+function buildGroups(){
   const gs=[...new Set(Object.values(S.payload.variables).map(e=>e.group))];
   groupSel.innerHTML=gs.map(g=>`<option>${g}</option>`).join("");
-  const def=entry(S.payload.default_key);
-  S.group=def?def.group:gs[0]; groupSel.value=S.group;
+  const def=entry(S.payload.default_key);S.group=def?def.group:gs[0];groupSel.value=S.group;
 }
-function buildVars() {
+function buildVars(){
   const es=Object.values(S.payload.variables).filter(e=>e.group===S.group);
   varSel.innerHTML=es.map(e=>`<option value="${e.key}">${e.label}</option>`).join("");
-  const pref=es.find(e=>e.key===S.key)||es[0]; S.key=pref.key; varSel.value=S.key;
-  // var2 for compare
+  const pref=es.find(e=>e.key===S.key)||es[0];S.key=pref.key;varSel.value=S.key;
   const all=Object.values(S.payload.variables);
   var2Sel.innerHTML=all.map(e=>`<option value="${e.key}">${e.label}</option>`).join("");
-  if(!S.key2) S.key2=all.find(e=>e.key!==S.key)?.key||S.key;
-  var2Sel.value=S.key2;
+  if(!S.key2)S.key2=all.find(e=>e.key!==S.key)?.key||S.key;var2Sel.value=S.key2;
 }
-function buildDateBand() {
-  const e=curEntry();
-  computeValidDates(e);
+function buildDateBand(){
+  const e=curEntry();computeValidDates(e);S.cscaleLock=null;
   dateSel.innerHTML=S.validTimes.map(t=>`<option>${t}</option>`).join("");
-  if(e.axis_name) {
-    bandSel.disabled=false;
-    bandSel.innerHTML=e.coords[e.axis_name].map(b=>`<option>${b}</option>`).join("");
-  } else { bandSel.disabled=true; bandSel.innerHTML="<option>-</option>"; }
+  if(e.axis_name){bandSel.disabled=false;bandSel.innerHTML=e.coords[e.axis_name].map(b=>`<option>${b}</option>`).join("");}
+  else{bandSel.disabled=true;bandSel.innerHTML="<option>-</option>";}
 }
-function buildInfo() {
-  const e=curEntry(), t=e.coords.time[di(e)],
-    b=e.axis_name?e.coords[e.axis_name][bi(e)]:"scalar";
-  const px=S.pins[0];
+function buildInfo(){
+  const e=curEntry(),t=e.coords.time[di(e)],b=e.axis_name?e.coords[e.axis_name][bi(e)]:"scalar",px=S.pins[0];
+  const empty=e.coords.time.length-S.validTimes.length;
   $("infoBar").innerHTML=`
     <span><strong>Variable</strong>: ${e.label}</span>
-    <span><strong>Workflow</strong>: ${e.workflow}</span>
     <span><strong>Pixel</strong>: y=${px.y}, x=${px.x}</span>
     <span><strong>Date</strong>: ${t}</span>
     <span><strong>Band</strong>: ${b}</span>
-    <span><strong>Grid</strong>: ${e.coords.y.length}&times;${e.coords.x.length}&times;${S.validTimes.length} dates (${e.coords.time.length - S.validTimes.length} empty removed)</span>`;
+    <span><strong>Grid</strong>: ${e.coords.y.length}&times;${e.coords.x.length}&times;${S.validTimes.length} dates${empty?` (${empty} empty removed)`:""}</span>`;
 }
-function buildPins() {
-  $("pinBar").innerHTML=S.pins.map((p,i)=>{
-    const c=PIN_COLORS[i%PIN_COLORS.length];
+function buildPins(){
+  $("pinBar").innerHTML=S.pins.map((p,i)=>{const c=PIN_COLORS[i%PIN_COLORS.length];
     return `<span class="pin" style="background:${c}22;color:${c};border:1px solid ${c}44">
       P${i} (${p.y},${p.x}) <span class="remove" onclick="removePin(${i})">&times;</span></span>`;
   }).join("");
 }
-function addPin(y,x) {
-  if(S.pins.length>=6) S.pins.shift();
-  if(!S.pins.some(p=>p.y===y&&p.x===x)) { S.pins.push({y,x}); buildPins(); render(); }
-}
-function removePin(i) {
-  if(S.pins.length<=1) return;
-  S.pins.splice(i,1); buildPins(); render();
-}
-function handleMapClick(evt) {
-  const pt=evt.points?.[0]; if(!pt) return;
-  const y=pt.pointIndex?.[0]??0, x=pt.pointIndex?.[1]??0;
-  S.pins[0]={y,x}; buildPins(); render();
+function addPin(y,x){if(S.pins.length>=6)S.pins.shift();if(!S.pins.some(p=>p.y===y&&p.x===x)){S.pins.push({y,x});buildPins();render();}}
+function removePin(i){if(S.pins.length<=1)return;S.pins.splice(i,1);buildPins();render();}
+function handleMapClick(evt){const pt=evt.points?.[0];if(!pt)return;
+  S.pins[0]={y:pt.pointIndex?.[0]??0,x:pt.pointIndex?.[1]??0};buildPins();render();}
+/* Click on time series → jump to that date */
+function handleTimeClick(evt){
+  const pt=evt.points?.[0];if(!pt||!pt.x)return;
+  const clickMs=new Date(pt.x).getTime(),xs=numDates(S.validTimes);
+  let best=0,bestDist=Infinity;
+  xs.forEach((x,i)=>{const d=Math.abs(x-clickMs);if(d<bestDist){bestDist=d;best=i;}});
+  dateSel.selectedIndex=best;render();
 }
 
 /* ───── Tab switching ───── */
-function switchTab(tab) {
-  S.activeTab=tab;
-  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===tab));
-  ["overview","spatial","temporal","spectral","compare"].forEach(t=>{
-    $("tab-"+t).classList.toggle("hidden",t!==tab);
-  });
-  $("var2Wrap").style.display=tab==="compare"?"block":"none";
-  render();
+function switchTab(tab){
+  S.activeTab=tab;document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===tab));
+  ["overview","spatial","temporal","spectral","compare"].forEach(t=>$("tab-"+t).classList.toggle("hidden",t!==tab));
+  $("var2Wrap").style.display=tab==="compare"?"block":"none";render();
 }
 
 /* ───── Render ───── */
-function render() {
-  buildInfo();
-  const e=curEntry(); if(!e) return;
-  const fn={overview:renderOverview,spatial:renderSpatial,temporal:renderTemporal,spectral:renderSpectral,compare:renderCompare};
-  (fn[S.activeTab]||renderOverview)(e);
+function render(){
+  buildInfo();pushState();const e=curEntry();if(!e)return;
+  ({overview:renderOverview,spatial:renderSpatial,temporal:renderTemporal,spectral:renderSpectral,compare:renderCompare}[S.activeTab]||renderOverview)(e);
 }
 
-function renderOverview(e) {
-  const ti=di(e), bx=bi(e), z=mapVals(e,ti,bx), fv=flatVals(z), st=stats(fv);
-  const px=S.pins[0];
-
-  // KPIs
+function renderOverview(e){
+  const ti=di(e),bx=bi(e),z=mapVals(e,ti,bx),fv=flatVals(z),st=stats(fv),px=S.pins[0],gr=globalRange(e,bx);
   $("kpiBar").innerHTML=[
     {v:st.mean.toFixed(4),l:"Mean"},{v:st.std.toFixed(4),l:"Std Dev"},
     {v:st.min.toFixed(4),l:"Min"},{v:st.max.toFixed(4),l:"Max"},
-    {v:st.n,l:"Valid pixels"},{v:S.validTimes.length,l:"Dates (valid)"},
+    {v:st.n,l:"Valid pixels"},{v:S.validTimes.length,l:"Dates"},
   ].map(k=>`<div class="kpi"><div class="kpi-value">${k.v}</div><div class="kpi-label">${k.l}</div></div>`).join("");
 
-  // Map
-  Plotly.newPlot("ovMap",[{z,x:e.coords.x,y:e.coords.y,type:"heatmap",colorscale:"Viridis",
+  Plotly.newPlot("ovMap",[{z,x:e.coords.x,y:e.coords.y,type:"heatmap",colorscale:cmap(),...gr,
     hovertemplate:"x=%{x:.4f}<br>y=%{y:.4f}<br>%{z:.4f}<extra></extra>"}],
     {title:`${e.label} — ${e.coords.time[ti]}`,margin:MARGIN,
      xaxis:{title:"x"},yaxis:{title:"y",autorange:"reversed"},
      shapes:[{type:"rect",x0:e.coords.x[px.x]-0.0002,x1:e.coords.x[px.x]+0.0002,
-              y0:e.coords.y[px.y]-0.0002,y1:e.coords.y[px.y]+0.0002,
-              line:{color:"red",width:2}}]},PLOTLY_CFG);
+              y0:e.coords.y[px.y]-0.0002,y1:e.coords.y[px.y]+0.0002,line:{color:"red",width:2}}]},PLOTLY_CFG);
   $("ovMap").on("plotly_click",handleMapClick);
 
-  // Time series (all pins) — uses only valid dates
   const xs=numDates(S.validTimes);
-  const traces=S.pins.map((p,i)=>{
-    let s=seriesAt(e,p.y,p.x,bx), xp=xs.slice();
-    const ip=interpDaily(xp,s); xp=ip.xs; s=ip.ys;
-    return {x:xp,y:s,mode:"lines+markers",name:`P${i} (${p.y},${p.x})`,
-            line:{color:PIN_COLORS[i%PIN_COLORS.length],width:2},marker:{size:4},
-            hovertemplate:"%{x|%Y-%m-%d}: %{y:.4f}<extra></extra>"};
-  });
-  Plotly.newPlot("ovTime",traces,{title:"Pixel time series",margin:MARGIN,
+  const traces=S.pins.map((p,i)=>{let s=seriesAt(e,p.y,p.x,bx),xp=xs.slice();
+    const ip=interpDaily(xp,s);xp=ip.xs;s=ip.ys;
+    return{x:xp,y:s,mode:"lines+markers",name:`P${i} (${p.y},${p.x})`,
+      line:{color:PIN_COLORS[i%PIN_COLORS.length],width:2},marker:{size:4},
+      hovertemplate:"%{x|%Y-%m-%d}: %{y:.4f}<extra></extra>"};});
+  Plotly.newPlot("ovTime",traces,{title:"Pixel time series (click a point to jump date)",margin:MARGIN,
     xaxis:{type:"date"},yaxis:{title:e.label},legend:{orientation:"h",y:-0.15}},PLOTLY_CFG);
+  $("ovTime").on("plotly_click",handleTimeClick);
 
-  // Histogram
   Plotly.newPlot("ovHist",[{x:fv,type:"histogram",marker:{color:PIN_COLORS[0]},nbinsx:30,
     hovertemplate:"%{x:.4f}: count=%{y}<extra></extra>"}],
     {title:"Value distribution",margin:{...MARGIN,b:35},xaxis:{title:e.label},yaxis:{title:"Count"}},PLOTLY_CFG);
 
-  // Spectrum
   const sp=specAt(e,px.y,px.x,ti);
-  if(sp) {
-    Plotly.newPlot("ovSpectrum",[{x:e.coords[e.axis_name],y:sp,mode:"lines",
-      line:{color:"#1d4ed8",width:2},hovertemplate:`%{x}: %{y:.4f}<extra></extra>`}],
-      {title:`Spectrum at P0 — ${e.coords.time[ti]}`,margin:MARGIN,
-       xaxis:{title:e.axis_name+" (nm)"},yaxis:{title:e.label}},PLOTLY_CFG);
-  } else {
+  if(sp){Plotly.newPlot("ovSpectrum",[{x:e.coords[e.axis_name],y:sp,mode:"lines",
+    line:{color:"#1d4ed8",width:2},hovertemplate:`%{x}: %{y:.4f}<extra></extra>`}],
+    {title:`Spectrum at P0 — ${e.coords.time[ti]}`,margin:MARGIN,
+     xaxis:{title:e.axis_name+" (nm)"},yaxis:{title:e.label}},PLOTLY_CFG);
+  }else if(e.key.includes("rsot")){
+    /* Derive NDVI from rsot if available */
     Plotly.newPlot("ovSpectrum",[],{title:"No spectral axis",margin:MARGIN,
-      annotations:[{text:"Select a spectral variable (rsot, LoF_, Lot_)",showarrow:false,x:0.5,y:0.5,xref:"paper",yref:"paper",font:{color:"#94a3b8"}}],
+      annotations:[{text:"Select a spectral variable",showarrow:false,x:.5,y:.5,xref:"paper",yref:"paper",font:{color:"#94a3b8"}}],
+      xaxis:{visible:false},yaxis:{visible:false}},PLOTLY_CFG);
+  }else{
+    Plotly.newPlot("ovSpectrum",[],{title:"No spectral axis",margin:MARGIN,
+      annotations:[{text:"Select a spectral variable (rsot, LoF_, Lot_)",showarrow:false,x:.5,y:.5,xref:"paper",yref:"paper",font:{color:"#94a3b8"}}],
       xaxis:{visible:false},yaxis:{visible:false}},PLOTLY_CFG);
   }
 
-  // Stats table
   const rows=[["Mean",st.mean],["Std",st.std],["Min",st.min],["Max",st.max],["Valid px",st.n]];
-  S.pins.forEach((p,i)=>{
-    const v=valAt(e,p.y,p.x,ti,bx);
-    rows.push([`P${i} (${p.y},${p.x})`,v]);
-  });
+  S.pins.forEach((p,i)=>{rows.push([`P${i} (${p.y},${p.x})`,valAt(e,p.y,p.x,ti,bx)]);});
+  /* Derived NDVI if rsot is available */
+  const rsotE=entry("reflectance:rsot");
+  if(rsotE&&rsotE.axis_name&&e.key!=="reflectance:rsot"){
+    const wl=rsotE.coords[rsotE.axis_name];
+    const iRed=wl.findIndex(w=>w>=650&&w<=680),iNir=wl.findIndex(w=>w>=840&&w<=880);
+    if(iRed>=0&&iNir>=0){
+      const red=valAt(rsotE,px.y,px.x,ti,iRed),nir=valAt(rsotE,px.y,px.x,ti,iNir);
+      if(red!=null&&nir!=null){const ndvi=(nir-red)/(nir+red+1e-10);rows.push(["NDVI (P0)",ndvi]);}
+    }
+  }
   $("statsTable").querySelector("tbody").innerHTML=rows.map(([l,v])=>
     `<tr><td>${l}</td><td>${typeof v==="number"?v.toFixed(4):v}</td></tr>`).join("");
 }
 
-function renderSpatial(e) {
-  const ti=di(e), bx=bi(e), z=mapVals(e,ti,bx);
-  // Second date = next valid date after current
+function renderSpatial(e){
+  const ti=di(e),bx=bi(e),z=mapVals(e,ti,bx),gr=globalRange(e,bx);
   const curPos=S.validIdx.indexOf(ti);
   const ti2=S.validIdx[Math.min(curPos+1,S.validIdx.length-1)]||ti;
   const z2=mapVals(e,ti2,bx);
-  const common={type:"heatmap",colorscale:"Viridis",hovertemplate:"x=%{x:.4f}<br>y=%{y:.4f}<br>%{z:.4f}<extra></extra>"};
-
-  Plotly.newPlot("spMap1",[{z,...common,x:e.coords.x,y:e.coords.y}],
+  const cm={type:"heatmap",colorscale:cmap(),...gr,hovertemplate:"x=%{x:.4f}<br>y=%{y:.4f}<br>%{z:.4f}<extra></extra>"};
+  Plotly.newPlot("spMap1",[{z,...cm,x:e.coords.x,y:e.coords.y}],
     {title:`${e.label} — ${e.coords.time[ti]}`,margin:MARGIN,yaxis:{autorange:"reversed"}},PLOTLY_CFG);
   $("spMap1").on("plotly_click",handleMapClick);
-
-  Plotly.newPlot("spMap2",[{z:z2,...common,x:e.coords.x,y:e.coords.y}],
+  Plotly.newPlot("spMap2",[{z:z2,...cm,x:e.coords.x,y:e.coords.y}],
     {title:`${e.label} — ${e.coords.time[ti2]}`,margin:MARGIN,yaxis:{autorange:"reversed"}},PLOTLY_CFG);
   $("spMap2").on("plotly_click",handleMapClick);
-
-  // Difference
   const diff=z.map((row,i)=>row.map((v,j)=>v-z2[i][j]));
   Plotly.newPlot("spDiff",[{z:diff,x:e.coords.x,y:e.coords.y,type:"heatmap",colorscale:"RdBu",zmid:0,
     hovertemplate:"diff=%{z:.4f}<extra></extra>"}],
     {title:`Difference: ${e.coords.time[ti]} minus ${e.coords.time[ti2]}`,margin:MARGIN,yaxis:{autorange:"reversed"}},PLOTLY_CFG);
 }
 
-function renderTemporal(e) {
-  const bx=bi(e), xs=numDates(S.validTimes);
-
-  // Main: all pins (valid dates only)
-  const traces=S.pins.map((p,i)=>{
-    let s=seriesAt(e,p.y,p.x,bx), xp=xs.slice();
-    const ip=interpDaily(xp,s); xp=ip.xs; s=ip.ys;
-    return {x:xp,y:s,mode:"lines+markers",name:`P${i} (${p.y},${p.x})`,
-            line:{color:PIN_COLORS[i%PIN_COLORS.length],width:2.5},marker:{size:5},
-            hovertemplate:"%{x|%Y-%m-%d}: %{y:.4f}<extra></extra>"};
-  });
-  Plotly.newPlot("tsMain",traces,{title:`${e.label} — all pinned pixels`,margin:MARGIN,
+function renderTemporal(e){
+  const bx=bi(e),xs=numDates(S.validTimes);
+  const traces=S.pins.map((p,i)=>{let s=seriesAt(e,p.y,p.x,bx),xp=xs.slice();
+    const ip=interpDaily(xp,s);xp=ip.xs;s=ip.ys;
+    return{x:xp,y:s,mode:"lines+markers",name:`P${i} (${p.y},${p.x})`,
+      line:{color:PIN_COLORS[i%PIN_COLORS.length],width:2.5},marker:{size:5},
+      hovertemplate:"%{x|%Y-%m-%d}: %{y:.4f}<extra></extra>"};});
+  Plotly.newPlot("tsMain",traces,{title:`${e.label} — click a point to jump date`,margin:MARGIN,
     xaxis:{type:"date",title:"Date"},yaxis:{title:e.label},legend:{orientation:"h",y:-0.12}},PLOTLY_CFG);
+  $("tsMain").on("plotly_click",handleTimeClick);
 
-  // Multi-variable for pixel 0 (each variable uses its own valid dates)
   const px=S.pins[0];
   const groupEntries=Object.values(S.payload.variables).filter(v=>v.group===S.group&&!v.axis_name);
   const mTraces=groupEntries.slice(0,5).map((v,i)=>{
-    // compute valid dates for this variable on the fly
-    const vIdx=[]; for(let t=0;t<v.coords.time.length;t++) if(_sliceHasData(v,t)) vIdx.push(t);
+    const vIdx=[];for(let t=0;t<v.coords.time.length;t++)if(_sliceHasData(v,t))vIdx.push(t);
     const vTimes=vIdx.map(t=>v.coords.time[t]);
-    const s=vIdx.map(t=>{ const p=v.data[px.y]?.[px.x]; return p ? (v.axis_name ? p[t][0] : p[t]) : null; });
-    return {x:numDates(vTimes),y:s,mode:"lines+markers",name:v.label,
-            line:{width:2},marker:{size:4},hovertemplate:"%{x|%Y-%m-%d}: %{y:.4f}<extra></extra>"};
-  });
+    const s=vIdx.map(t=>{const p=v.data[px.y]?.[px.x];return p?(v.axis_name?p[t][0]:p[t]):null;});
+    return{x:numDates(vTimes),y:s,mode:"lines+markers",name:v.label,
+      line:{width:2},marker:{size:4},hovertemplate:"%{x|%Y-%m-%d}: %{y:.4f}<extra></extra>"};});
   Plotly.newPlot("tsMulti",mTraces,{title:`Scalar variables at P0 (${px.y},${px.x})`,margin:MARGIN,
     xaxis:{type:"date"},legend:{orientation:"h",y:-0.15}},PLOTLY_CFG);
 
-  // Scatter: first vs last valid timestep
-  const firstIdx=S.validIdx[0], lastIdx=S.validIdx[S.validIdx.length-1];
-  const z0=mapVals(e,firstIdx,bx), zN=mapVals(e,lastIdx,bx);
-  const f0=flatVals(z0), fN=flatVals(zN);
-  const n=Math.min(f0.length,fN.length);
+  const firstIdx=S.validIdx[0],lastIdx=S.validIdx[S.validIdx.length-1];
+  const z0=mapVals(e,firstIdx,bx),zN=mapVals(e,lastIdx,bx);
+  const f0=flatVals(z0),fN=flatVals(zN),n=Math.min(f0.length,fN.length);
   Plotly.newPlot("tsScatter",[{x:f0.slice(0,n),y:fN.slice(0,n),mode:"markers",
     marker:{size:6,color:PIN_COLORS[0],opacity:0.7},
     hovertemplate:"first=%{x:.4f}<br>last=%{y:.4f}<extra></extra>"},
     {x:[Math.min(...f0),Math.max(...f0)],y:[Math.min(...f0),Math.max(...f0)],mode:"lines",
      line:{color:"#94a3b8",dash:"dash",width:1},showlegend:false}],
-    {title:`First vs last valid date`,margin:MARGIN,
+    {title:"First vs last valid date",margin:MARGIN,
      xaxis:{title:S.validTimes[0]},yaxis:{title:S.validTimes[S.validTimes.length-1]}},PLOTLY_CFG);
 }
 
-function renderSpectral(e) {
-  const ti=di(e), px=S.pins[0];
-
-  if(!e.axis_name) {
-    ["specMain","specMultiDate","specMultiPixel"].forEach(id=>
-      Plotly.newPlot(id,[],{title:"Select a spectral variable",margin:MARGIN,
-        annotations:[{text:"Choose rsot, LoF_, or Lot_ from the variable dropdown",showarrow:false,x:0.5,y:0.5,xref:"paper",yref:"paper"}],
-        xaxis:{visible:false},yaxis:{visible:false}},PLOTLY_CFG));
-    return;
-  }
+function renderSpectral(e){
+  const ti=di(e),px=S.pins[0];
+  if(!e.axis_name){["specMain","specMultiDate","specMultiPixel"].forEach(id=>
+    Plotly.newPlot(id,[],{title:"Select a spectral variable",margin:MARGIN,
+      annotations:[{text:"Choose rsot, LoF_, or Lot_",showarrow:false,x:.5,y:.5,xref:"paper",yref:"paper"}],
+      xaxis:{visible:false},yaxis:{visible:false}},PLOTLY_CFG));return;}
   const ax=e.coords[e.axis_name];
-
-  // Main: pinned pixels at current date
-  const traces=S.pins.map((p,i)=>{
-    const sp=specAt(e,p.y,p.x,ti);
-    return {x:ax,y:sp,mode:"lines",name:`P${i} (${p.y},${p.x})`,
-            line:{color:PIN_COLORS[i%PIN_COLORS.length],width:2},
-            hovertemplate:`%{x}: %{y:.5f}<extra></extra>`};
-  });
+  /* Band markers for common RS bands */
+  const bandMarkers=[];
+  if(e.axis_name==="wavelength"){
+    [{nm:665,label:"Red"},{nm:705,label:"RE"},{nm:842,label:"NIR"},{nm:1610,label:"SWIR"}].forEach(b=>{
+      const closest=ax.reduce((prev,curr)=>Math.abs(curr-b.nm)<Math.abs(prev-b.nm)?curr:prev);
+      bandMarkers.push({type:"line",x0:closest,x1:closest,y0:0,y1:1,yref:"paper",
+        line:{color:"#94a3b8",width:1,dash:"dot"},label:{text:b.label,textposition:"top",font:{size:10,color:"#94a3b8"}}});
+    });
+  }
+  const traces=S.pins.map((p,i)=>({x:ax,y:specAt(e,p.y,p.x,ti),mode:"lines",name:`P${i} (${p.y},${p.x})`,
+    line:{color:PIN_COLORS[i%PIN_COLORS.length],width:2},hovertemplate:`%{x}: %{y:.5f}<extra></extra>`}));
   Plotly.newPlot("specMain",traces,{title:`${e.label} spectra — ${e.coords.time[ti]}`,margin:MARGIN,
-    xaxis:{title:e.axis_name+" (nm)"},yaxis:{title:e.label},legend:{orientation:"h",y:-0.12}},PLOTLY_CFG);
+    xaxis:{title:e.axis_name+" (nm)"},yaxis:{title:e.label},shapes:bandMarkers,legend:{orientation:"h",y:-0.12}},PLOTLY_CFG);
 
-  // Multi-date for pixel 0 (sample from valid dates only)
   const vn=S.validIdx.length;
-  const dateSample=[S.validIdx[0],S.validIdx[Math.floor(vn/2)],S.validIdx[vn-1]];
-  const dTraces=dateSample.map((t,i)=>{
-    const sp=specAt(e,px.y,px.x,t);
-    return {x:ax,y:sp,mode:"lines",name:e.coords.time[t],
-            line:{width:2},hovertemplate:`%{x}: %{y:.5f}<extra></extra>`};
-  });
-  Plotly.newPlot("specMultiDate",dTraces,{title:`P0 spectra across dates`,margin:MARGIN,
-    xaxis:{title:e.axis_name+" (nm)"},yaxis:{title:e.label},legend:{orientation:"h",y:-0.15}},PLOTLY_CFG);
+  const dateSample=[S.validIdx[0],S.validIdx[Math.floor(vn/3)],S.validIdx[Math.floor(2*vn/3)],S.validIdx[vn-1]];
+  const dTraces=dateSample.map((t,i)=>({x:ax,y:specAt(e,px.y,px.x,t),mode:"lines",name:e.coords.time[t],
+    line:{width:2},hovertemplate:`%{x}: %{y:.5f}<extra></extra>`}));
+  Plotly.newPlot("specMultiDate",dTraces,{title:"P0 spectra across season",margin:MARGIN,
+    xaxis:{title:e.axis_name+" (nm)"},yaxis:{title:e.label},shapes:bandMarkers,legend:{orientation:"h",y:-0.15}},PLOTLY_CFG);
 
-  // Multi-pixel at current date
   Plotly.newPlot("specMultiPixel",traces,{title:`All pins at ${e.coords.time[ti]}`,margin:MARGIN,
-    xaxis:{title:e.axis_name+" (nm)"},yaxis:{title:e.label},legend:{orientation:"h",y:-0.15}},PLOTLY_CFG);
+    xaxis:{title:e.axis_name+" (nm)"},yaxis:{title:e.label},shapes:bandMarkers,legend:{orientation:"h",y:-0.15}},PLOTLY_CFG);
 }
 
-function renderCompare(e) {
+function renderCompare(e){
   const e2=entry(S.key2)||e;
-  const ti=di(e), bx=bi(e), bx2=bi(e2);
-  const z1=mapVals(e,ti,bx), z2=mapVals(e2,Math.min(ti,e2.coords.time.length-1),e2.axis_name?bx2:0);
-  const common={type:"heatmap",colorscale:"Viridis",hovertemplate:"x=%{x:.4f}<br>y=%{y:.4f}<br>%{z:.4f}<extra></extra>"};
-
-  Plotly.newPlot("cmpMap1",[{z:z1,...common,x:e.coords.x,y:e.coords.y}],
+  const ti=di(e),bx=bi(e),bx2=bi(e2),gr=globalRange(e,bx);
+  const z1=mapVals(e,ti,bx),z2=mapVals(e2,Math.min(ti,e2.coords.time.length-1),e2.axis_name?bx2:0);
+  const cm={type:"heatmap",colorscale:cmap(),hovertemplate:"x=%{x:.4f}<br>y=%{y:.4f}<br>%{z:.4f}<extra></extra>"};
+  Plotly.newPlot("cmpMap1",[{z:z1,...cm,...gr,x:e.coords.x,y:e.coords.y}],
     {title:e.label,margin:MARGIN,yaxis:{autorange:"reversed"}},PLOTLY_CFG);
   $("cmpMap1").on("plotly_click",handleMapClick);
-
-  Plotly.newPlot("cmpMap2",[{z:z2,...common,x:e2.coords.x,y:e2.coords.y}],
+  Plotly.newPlot("cmpMap2",[{z:z2,...cm,x:e2.coords.x,y:e2.coords.y}],
     {title:e2.label,margin:MARGIN,yaxis:{autorange:"reversed"}},PLOTLY_CFG);
   $("cmpMap2").on("plotly_click",handleMapClick);
 
-  // Scatter
-  const f1=flatVals(z1), f2=flatVals(z2);
-  const n=Math.min(f1.length,f2.length);
+  const f1=flatVals(z1),f2=flatVals(z2),n=Math.min(f1.length,f2.length);
   Plotly.newPlot("cmpScatter",[{x:f1.slice(0,n),y:f2.slice(0,n),mode:"markers",
     marker:{size:6,color:PIN_COLORS[0],opacity:0.7},
     hovertemplate:`${e.label}=%{x:.4f}<br>${e2.label}=%{y:.4f}<extra></extra>`}],
-    {title:`${e.label} vs ${e2.label}`,margin:MARGIN,
-     xaxis:{title:e.label},yaxis:{title:e2.label}},PLOTLY_CFG);
+    {title:`${e.label} vs ${e2.label}`,margin:MARGIN,xaxis:{title:e.label},yaxis:{title:e2.label}},PLOTLY_CFG);
 
-  // Dual time series
-  const px=S.pins[0], xs1=numDates(e.coords.time), xs2=numDates(e2.coords.time);
+  const px=S.pins[0],xs1=numDates(S.validTimes);
+  const e2vIdx=[];for(let t=0;t<e2.coords.time.length;t++)if(_sliceHasData(e2,t))e2vIdx.push(t);
+  const e2vTimes=e2vIdx.map(t=>e2.coords.time[t]),xs2=numDates(e2vTimes);
+  const s2=e2vIdx.map(t=>{const p=e2.data[Math.min(px.y,e2.coords.y.length-1)]?.[Math.min(px.x,e2.coords.x.length-1)];
+    return p?(e2.axis_name?p[t][bx2]:p[t]):null;});
   Plotly.newPlot("cmpTime",[
     {x:xs1,y:seriesAt(e,px.y,px.x,bx),mode:"lines+markers",name:e.label,
      line:{color:PIN_COLORS[0],width:2},marker:{size:4},hovertemplate:"%{x|%Y-%m-%d}: %{y:.4f}<extra></extra>"},
-    {x:xs2,y:seriesAt(e2,Math.min(px.y,e2.coords.y.length-1),Math.min(px.x,e2.coords.x.length-1),bx2),
-     mode:"lines+markers",name:e2.label,yaxis:"y2",
+    {x:xs2,y:s2,mode:"lines+markers",name:e2.label,yaxis:"y2",
      line:{color:PIN_COLORS[1],width:2},marker:{size:4},hovertemplate:"%{x|%Y-%m-%d}: %{y:.4f}<extra></extra>"}
-  ],{title:`P0 — dual axis`,margin:{...MARGIN,r:55},
-    xaxis:{type:"date"},yaxis:{title:e.label,titlefont:{color:PIN_COLORS[0]}},
+  ],{title:"P0 — dual axis",margin:{...MARGIN,r:55},xaxis:{type:"date"},
+    yaxis:{title:e.label,titlefont:{color:PIN_COLORS[0]}},
     yaxis2:{title:e2.label,titlefont:{color:PIN_COLORS[1]},overlaying:"y",side:"right"},
     legend:{orientation:"h",y:-0.12}},PLOTLY_CFG);
 }
 
 /* ───── Event wiring ───── */
-groupSel.onchange=()=>{ S.group=groupSel.value; buildVars(); buildDateBand(); render(); };
-varSel.onchange=()=>{ S.key=varSel.value; buildDateBand(); render(); };
-dateSel.onchange=render;
-bandSel.onchange=render;
-var2Sel.onchange=()=>{ S.key2=var2Sel.value; render(); };
+groupSel.onchange=()=>{S.group=groupSel.value;buildVars();buildDateBand();render();};
+varSel.onchange=()=>{S.key=varSel.value;buildDateBand();render();};
+dateSel.onchange=render;bandSel.onchange=render;
+var2Sel.onchange=()=>{S.key2=var2Sel.value;render();};
 interpToggle.onchange=render;
-$("themeBtn").onclick=()=>{
-  const dark=document.documentElement.toggleAttribute("data-theme");
-  document.documentElement.dataset.theme=dark?"dark":"";
-  $("themeBtn").textContent=dark?"Light":"Dark";
-};
+lockCscale.onchange=()=>{S.cscaleLock=null;render();};
+cmapSel.onchange=()=>{S.cscaleLock=null;render();};
+$("playBtn").onclick=toggleAnimation;
+$("exportBtn").onclick=exportCSV;
+$("themeBtn").onclick=()=>{const dark=document.documentElement.toggleAttribute("data-theme");
+  document.documentElement.dataset.theme=dark?"dark":"";$("themeBtn").textContent=dark?"Light":"Dark";};
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchTab(t.dataset.tab));
 
 /* ───── Bootstrap ───── */
-function initFromPayload(data) {
-  S.payload=data;
-  const params=new URLSearchParams(location.search);
-  buildGroups();
-  const rk=params.get("key"), rg=params.get("group");
-  if(rk&&S.payload.variables[rk]) {
-    S.group=S.payload.variables[rk].group; groupSel.value=S.group; S.key=rk;
-  } else if(rg) { S.group=rg; groupSel.value=rg; }
-  else { S.key=S.payload.default_key; }
-  buildVars(); buildDateBand(); buildPins();
-  if(params.get("tab")) switchTab(params.get("tab"));
-  else render();
+function initFromPayload(data){
+  S.payload=data;const params=new URLSearchParams(location.search);
+  buildGroups();S.key=S.payload.default_key;
+  if(params.get("key")||params.get("tab")){restoreState(params);}
+  else{buildVars();buildDateBand();buildPins();render();}
 }
-
-function showDropzone() {
+function showDropzone(){
   const dz=document.createElement("div");
   dz.style.cssText="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:999;gap:1rem;";
-  dz.innerHTML=`
-    <div style="text-align:center;max-width:520px;padding:2rem">
-      <h2 style="margin:0 0 0.5rem">Load explorer payload</h2>
-      <p style="color:var(--muted);line-height:1.6;margin:0 0 1rem">
-        The payload file could not be fetched automatically.<br>
-        This usually happens when opening the HTML directly from disk.<br>
-        Drop <code>explorer_payload.json</code> here or click to browse.
-      </p>
-      <input type="file" id="fileInput" accept=".json" style="display:none">
-      <button class="btn" onclick="document.getElementById('fileInput').click()" style="font-size:1rem;padding:0.6rem 1.2rem">
-        Choose explorer_payload.json
-      </button>
-      <p style="color:var(--muted);font-size:0.78rem;margin-top:1rem">
-        Or serve this directory: <code>python3 -m http.server 8000</code> then open
-        <a href="http://localhost:8000/explorer.html">localhost:8000/explorer.html</a>
-      </p>
-    </div>`;
+  dz.innerHTML=`<div style="text-align:center;max-width:520px;padding:2rem">
+    <h2 style="margin:0 0 0.5rem">Load explorer payload</h2>
+    <p style="color:var(--muted);line-height:1.6;margin:0 0 1rem">Drop <code>explorer_payload.json</code> here or click to browse.</p>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+    <button class="btn" onclick="document.getElementById('fileInput').click()" style="font-size:1rem;padding:0.6rem 1.2rem">Choose file</button>
+    <p style="color:var(--muted);font-size:0.78rem;margin-top:1rem">Or: <code>python3 -m http.server 8000</code></p></div>`;
   document.body.appendChild(dz);
-
-  function loadFile(file) {
-    const reader=new FileReader();
-    reader.onload=()=>{ try { initFromPayload(JSON.parse(reader.result)); dz.remove(); } catch(e) { alert("Invalid JSON: "+e.message); } };
-    reader.readAsText(file);
-  }
-  dz.querySelector("#fileInput").onchange=e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); };
-  dz.ondragover=e=>{ e.preventDefault(); dz.style.background="var(--accent-light)"; };
-  dz.ondragleave=()=>{ dz.style.background="var(--bg)"; };
-  dz.ondrop=e=>{ e.preventDefault(); dz.style.background="var(--bg)"; if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); };
+  function loadFile(f){const r=new FileReader();r.onload=()=>{try{initFromPayload(JSON.parse(r.result));dz.remove();}catch(e){alert("Invalid JSON: "+e.message);}};r.readAsText(f);}
+  dz.querySelector("#fileInput").onchange=e=>{if(e.target.files[0])loadFile(e.target.files[0]);};
+  dz.ondragover=e=>{e.preventDefault();dz.style.background="var(--accent-light)";};
+  dz.ondragleave=()=>{dz.style.background="var(--bg)";};
+  dz.ondrop=e=>{e.preventDefault();dz.style.background="var(--bg)";if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);};
 }
-
-async function boot() {
-  // 1. Check for pre-embedded payload (set by build tools)
-  if(window.EXPLORER_PAYLOAD) { initFromPayload(window.EXPLORER_PAYLOAD); return; }
-
-  // 2. Try fetch (works when served via HTTP / GitHub Pages)
-  try {
-    const url=new URL("explorer_payload.json", location.href);
-    const r=await fetch(url);
-    if(r.ok) { initFromPayload(await r.json()); return; }
-  } catch(_) { /* fetch not available or CORS blocked */ }
-
-  // 3. Fallback: show drag-and-drop / file picker for local file:// usage
+async function boot(){
+  if(window.EXPLORER_PAYLOAD){initFromPayload(window.EXPLORER_PAYLOAD);return;}
+  try{const url=new URL("explorer_payload.json",location.href);const r=await fetch(url);if(r.ok){initFromPayload(await r.json());return;}}catch(_){}
   showDropzone();
 }
 boot();
