@@ -19,6 +19,7 @@
   "arc_biophysics": "figures/arc_biophysics.svg",
   "arc_peak_maps": "figures/arc_peak_maps.png",
   "scope_input_overview": "figures/scope_input_overview.svg",
+  "arc_output": "arc_output.npz",
   "scope_input_reflectance": "scope_input_reflectance.nc",
   "scope_output_reflectance": "scope_output_reflectance.nc",
   "reflectance_outputs": "figures/reflectance_outputs.svg",

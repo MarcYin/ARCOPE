@@ -394,7 +394,9 @@ def _load_showcase_weather(times: np.ndarray) -> xr.Dataset:
         time_range=(start, end),
     )
     ds = ds.sortby("time")
-    return ds.sel(time=times)
+    # Interpolate weather onto observation times (the CSV may not have
+    # exact matching dates after extending the coverage window)
+    return ds.interp(time=times, method="linear")
 
 
 def _build_proxy_experiment_dataset(

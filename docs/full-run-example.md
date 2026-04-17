@@ -26,7 +26,7 @@ This page documents the real showcase path from the beginning to the end of the 
 
     ---
 
-    Belgium/Flanders test field, crop type `wheat`, field-year `2021`, local weather dates `2021-05-25` to `2021-08-05`.
+    Belgium/Flanders test field, crop type `wheat`, field-year `2021`, full growing season `2021-05-15` to `2021-10-01`.
 
 -   :material-layers-triple: __Model stages__
 
@@ -48,9 +48,9 @@ This page documents the real showcase path from the beginning to the end of the 
 | --- | --- |
 | Field | Bundled Belgium test field |
 | Crop type | `wheat` |
-| Retrieval window | `2021-05-25` to `2021-08-05` |
+| Retrieval window | `2021-05-15` to `2021-10-01` |
 | Retrieval source | Sentinel-2 via ARC |
-| Forcing source in published bundle | Bundled local weather CSV |
+| Forcing source in published bundle | Bundled local weather CSV (30 rows, May 15 – Oct 7) |
 | SCOPE workflows | `reflectance`, `fluorescence`, `thermal` |
 | Explorer focus | Pixel/date/band/spectrum browsing |
 
@@ -69,14 +69,16 @@ This page documents the real showcase path from the beginning to the end of the 
 
     ```bash
     python3 -m arc_scope.experiments.dual_workflow \
-      --start-date 2021-05-25 \
-      --end-date 2021-08-05 \
+      --start-date 2021-05-15 \
+      --end-date 2021-10-01 \
+      --growth-season-length 60 \
       --weather-provider local \
       --weather-file ./src/arc_scope/data/showcase_weather.csv \
       --scope-root-path ./upstream/SCOPE \
       --workflow reflectance \
       --workflow fluorescence \
       --workflow thermal \
+      --simulation-subset-size 8 \
       --dtype float32 \
       --output-dir ./docs/assets/full-run
     ```

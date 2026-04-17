@@ -2,7 +2,7 @@
   "package_versions": {
     "python": "3.11.15",
     "platform": "macOS-26.2-arm64-arm-64bit",
-    "arc_scope": "0.1.1.dev4+ga2ac30a96.d20260416",
+    "arc_scope": "0.1.1.dev6+gc961e8b11",
     "numpy": "2.4.3",
     "pandas": "3.0.2",
     "xarray": "2026.4.0",
@@ -17,5 +17,5 @@
     "cdsapi": "not-required",
     "scope_root": "available"
   },
-  "scope_root": "/Users/fengyin/Documents/ARC-SCOPE/upstream/SCOPE"
+  "scope_root": "upstream/SCOPE"
 }
