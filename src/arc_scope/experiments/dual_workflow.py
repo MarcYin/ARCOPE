@@ -22,15 +22,10 @@ import json
 import platform
 import sys
 from dataclasses import asdict, dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-import matplotlib
-
-matplotlib.use("Agg")
-
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -65,6 +60,23 @@ DEFAULT_LOCAL_VAR_MAP = {
     "pressure_hpa": "p",
     "wind_speed_ms": "u",
 }
+
+
+@lru_cache(maxsize=1)
+def _plotting_modules() -> tuple[Any, Any]:
+    """Import matplotlib lazily so test environments can import this module."""
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.dates as mdates
+        import matplotlib.pyplot as plt
+    except ModuleNotFoundError as exc:  # pragma: no cover - runtime guard
+        raise RuntimeError(
+            "matplotlib is required to generate full-run figures and explorer assets. "
+            "Install the plotting dependencies before writing artifacts."
+        ) from exc
+    return plt, mdates
 WORKFLOW_PRIORITY_NAMES = {
     "reflectance": ("rsot", "rso", "rsos", "rsod"),
     "fluorescence": ("LoF_", "F685", "F740", "LoutF", "EoutF"),
@@ -824,6 +836,7 @@ def _summarize_dataset(
 
 def _plot_field_boundary(geojson_path: Path, path: Path) -> None:
     """Render the field polygon(s) in geographic coordinates."""
+    plt, _ = _plotting_modules()
     with geojson_path.open(encoding="utf-8") as handle:
         payload = json.load(handle)
 
@@ -844,6 +857,7 @@ def _plot_field_boundary(geojson_path: Path, path: Path) -> None:
 
 def _plot_acquisition_timeline(acquisition_table: pd.DataFrame, path: Path) -> None:
     """Plot the Sentinel-2 acquisition timeline used for ARC assimilation."""
+    plt, mdates = _plotting_modules()
     times = pd.to_datetime(acquisition_table["date"])
     fig, ax = plt.subplots(figsize=(9, 3.5))
     markerline, stemlines, baseline = ax.stem(times, acquisition_table["doy"])
@@ -861,6 +875,7 @@ def _plot_acquisition_timeline(acquisition_table: pd.DataFrame, path: Path) -> N
 
 def _plot_weather_forcing(weather_ds: xr.Dataset, path: Path) -> None:
     """Plot the key forcing variables used by SCOPE."""
+    plt, mdates = _plotting_modules()
     variables = ("Rin", "Rli", "Ta", "u")
     colors = {
         "Rin": "#ea580c",
@@ -901,6 +916,7 @@ def _plot_weather_forcing(weather_ds: xr.Dataset, path: Path) -> None:
 
 def _plot_observation_geometry(observation_ds: xr.Dataset, path: Path) -> None:
     """Plot solar and viewing geometry through the season."""
+    plt, mdates = _plotting_modules()
     time = pd.to_datetime(observation_ds.coords["time"].values)
     fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
 
@@ -928,6 +944,7 @@ def _plot_observation_geometry(observation_ds: xr.Dataset, path: Path) -> None:
 
 def _plot_arc_biophysics(post_bio_da: xr.DataArray, path: Path) -> None:
     """Plot spatially averaged ARC biophysical trajectories."""
+    plt, mdates = _plotting_modules()
     bands = ("lai", "cab", "cw")
     colors = {"lai": "#15803d", "cab": "#16a34a", "cw": "#0f766e"}
     units = {"lai": "m2 m-2", "cab": "ug cm-2", "cw": "g cm-2"}
@@ -948,6 +965,7 @@ def _plot_arc_biophysics(post_bio_da: xr.DataArray, path: Path) -> None:
 
 def _plot_arc_peak_maps(post_bio_da: xr.DataArray, path: Path) -> None:
     """Plot maps for key ARC variables at peak mean LAI."""
+    plt, _ = _plotting_modules()
     peak_time = _peak_time_from_lai(post_bio_da)
     bands = ("lai", "cab", "cw")
     titles = {
@@ -970,6 +988,7 @@ def _plot_arc_peak_maps(post_bio_da: xr.DataArray, path: Path) -> None:
 
 def _plot_scope_input_overview(first_workflow: xr.Dataset, path: Path) -> None:
     """Plot a representative subset of the prepared SCOPE inputs."""
+    plt, mdates = _plotting_modules()
     variables = ("LAI", "Cab", "Cw", "Ta", "Rin", "tts")
     titles = {
         "LAI": "Leaf area index",
@@ -1002,6 +1021,7 @@ def _plot_workflow_output_timeseries(
     path: Path,
 ) -> None:
     """Plot high-signal time-series outputs for one workflow."""
+    plt, mdates = _plotting_modules()
     variables = workflow_run.selected_output_variables
     ncols = 2
     nrows = int(np.ceil(len(variables) / ncols)) or 1
@@ -1033,6 +1053,7 @@ def _plot_workflow_snapshot_maps(
     path: Path,
 ) -> None:
     """Plot spatial maps for the selected workflow outputs."""
+    plt, _ = _plotting_modules()
     map_variables = [
         name for name in workflow_run.selected_output_variables
         if _can_reduce_to_map(workflow_run.scope_output_ds[name])
@@ -1069,6 +1090,7 @@ def _plot_workflow_snapshot_maps(
 
 def _plot_workflow_comparison(workflow_runs: Mapping[str, WorkflowRun], path: Path) -> None:
     """Compare common time-series outputs across workflows."""
+    plt, mdates = _plotting_modules()
     workflows = list(workflow_runs)
     shared = set(workflow_runs[workflows[0]].scope_output_ds.data_vars)
     for workflow in workflows[1:]:
