@@ -57,12 +57,12 @@ If you are working from a repo checkout, [examples/05_showcase_experiment.py](ht
 
 Files generated for this page:
 
-- [summary.json](assets/showcase/summary.json)
-- [timeseries.csv](assets/showcase/timeseries.csv)
+- [summary.json](../assets/showcase/summary.json)
+- [timeseries.csv](../assets/showcase/timeseries.csv)
 
 ## Published Summary
 
-The generated [summary.json](assets/showcase/summary.json) file records:
+The generated [summary.json](../assets/showcase/summary.json) file records:
 
 - `n_time_steps`
 - `peak_lai`
@@ -81,7 +81,7 @@ The Pages workflow regenerates these artifacts before each docs build so the cha
 
 The showcase generates a self-contained Plotly dashboard with tabbed panels for canopy state, radiation partitioning, proxy calibration curves, and residual analysis.
 
-[Open interactive dashboard](assets/showcase/dashboard.html){ .md-button .md-button--primary }
+[Open interactive dashboard](../assets/showcase/dashboard.html){ .md-button .md-button--primary }
 
 The dashboard lets you:
 
@@ -92,11 +92,11 @@ The dashboard lets you:
 
 ## Radiation Partition
 
-![Direct and diffuse shortwave forcing](assets/showcase/radiation_partition.svg)
+![Direct and diffuse shortwave forcing](../assets/showcase/radiation_partition.svg)
 
 ## Proxy Calibration
 
-![Proxy fluorescence calibration](assets/showcase/proxy_sif_fit.svg)
+![Proxy fluorescence calibration](../assets/showcase/proxy_sif_fit.svg)
 
 ## Why This Matters
 
