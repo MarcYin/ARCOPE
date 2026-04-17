@@ -42,12 +42,12 @@ h2{ font-size:0.95rem; font-weight:600; color:var(--muted); text-transform:upper
     <div class="kpis">
       <div class="kpi"><div class="kv">10</div><div class="kl">Timesteps</div></div>
       <div class="kpi"><div class="kv">5.32</div><div class="kl">Peak LAI</div></div>
-      <div class="kpi"><div class="kv">24.3%</div><div class="kl">Mean direct frac</div></div>
+      <div class="kpi"><div class="kv">16.1%</div><div class="kl">Mean direct frac</div></div>
       <div class="kpi"><div class="kv">0.0180</div><div class="kl">True fqe</div></div>
       <div class="kpi"><div class="kv">0.0179</div><div class="kl">Fitted fqe</div></div>
       <div class="kpi"><div class="kv">0.5%</div><div class="kl">fqe error</div></div>
-      <div class="kpi"><div class="kv">0.1133</div><div class="kl">Initial RMSE</div></div>
-      <div class="kpi"><div class="kv">0.0026</div><div class="kl">Final RMSE</div></div>
+      <div class="kpi"><div class="kv">0.1077</div><div class="kl">Initial RMSE</div></div>
+      <div class="kpi"><div class="kv">0.0025</div><div class="kl">Final RMSE</div></div>
     </div>
   </div>
 
@@ -88,7 +88,7 @@ h2{ font-size:0.95rem; font-weight:600; color:var(--muted); text-transform:upper
     <p class="note">The proxy model generates a SIF-like signal from the canopy and radiation
     inputs. The optimiser adjusts <code>fqe</code> (fluorescence quantum efficiency) from
     0.0080 to 0.0179 to match the noisy synthetic observations,
-    reducing RMSE from 0.1133 to 0.00256.</p>
+    reducing RMSE from 0.1077 to 0.00254.</p>
   </div>
   <div class="panel"><div id="pSIF" class="plot-lg"></div></div>
 
@@ -105,8 +105,8 @@ h2{ font-size:0.95rem; font-weight:600; color:var(--muted); text-transform:upper
 <script>
 const D=["2021-05-25", "2021-06-02", "2021-06-10", "2021-06-18", "2021-06-26", "2021-07-04", "2021-07-12", "2021-07-20", "2021-07-28", "2021-08-05"];
 const LAI=[0.7138, 1.9435, 3.4181, 4.6396, 5.3246, 5.3246, 4.6396, 3.4181, 1.9435, 0.7138],Cab=[25.125, 33.77, 42.4315, 49.1485, 52.795, 52.795, 49.1485, 42.4315, 33.77, 25.125],Cw=[0.01005, 0.0136, 0.01835, 0.02247, 0.02483, 0.02483, 0.02247, 0.01835, 0.0136, 0.01005];
-const Rin=[567.3, 552.74, 572.94, 617.66, 628.7, 674.4, 660.1, 674.78, 615.74, NaN],Dir=[68.099, 59.683, 67.67, 91.271, 98.929, 135.102, 127.433, 145.948, 105.174, NaN],Dif=[499.201, 493.057, 505.27, 526.389, 529.771, 539.298, 532.667, 528.832, 510.566, NaN];
-const Obs=[0.04005, 0.1073, 0.17916, 0.24371, 0.27681, 0.28705, 0.25226, 0.19633, 0.10603, NaN],Init=[0.0178, 0.04716, 0.08011, 0.1099, 0.12384, 0.12934, 0.11201, 0.08487, 0.048, NaN],Fit=[0.03986, 0.10562, 0.17943, 0.24614, 0.27736, 0.28968, 0.25087, 0.19009, 0.1075, NaN];
+const Rin=[567.3, 552.74, 572.94, 617.66, 628.7, 674.4, 660.1, 674.78, 615.74, 611.0],Dir=[68.099, 59.683, 67.67, 91.271, 98.929, 135.102, 127.433, 145.948, 105.174, 109.023],Dif=[499.201, 493.057, 505.27, 526.389, 529.771, 539.298, 532.667, 528.832, 510.566, 501.977];
+const Obs=[0.04005, 0.1073, 0.17916, 0.24371, 0.27681, 0.28705, 0.25226, 0.19633, 0.10603, 0.03695],Init=[0.0178, 0.04716, 0.08011, 0.1099, 0.12384, 0.12934, 0.11201, 0.08487, 0.048, 0.01752],Fit=[0.03985, 0.1056, 0.17939, 0.24608, 0.27729, 0.28961, 0.25081, 0.19005, 0.10748, 0.03924];
 const M={t:36,l:52,r:18,b:36},C={responsive:true,displayModeBar:true,modeBarButtonsToRemove:["lasso2d","select2d"]};
 const frac=Dir.map((d,i)=>Rin[i]>0?d/Rin[i]:0);
 const residI=Obs.map((o,i)=>o-Init[i]),residF=Obs.map((o,i)=>o-Fit[i]);

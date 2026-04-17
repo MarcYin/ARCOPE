@@ -382,8 +382,10 @@ def _load_showcase_weather(times: np.ndarray) -> xr.Dataset:
         "pressure_hpa": "p",
         "wind_speed_ms": "u",
     }
-    start = pd.Timestamp(times.min()).to_pydatetime()
-    end = pd.Timestamp(times.max()).to_pydatetime()
+    # Widen the fetch window by 10 days on each side so the interpolation
+    # has weather data flanking every observation date (avoids NaN at edges).
+    start = pd.Timestamp(times.min()).to_pydatetime() - pd.Timedelta(days=10)
+    end = pd.Timestamp(times.max()).to_pydatetime() + pd.Timedelta(days=10)
     provider = LocalProvider(
         file_path=SHOWCASE_WEATHER_CSV,
         var_map=var_map,
