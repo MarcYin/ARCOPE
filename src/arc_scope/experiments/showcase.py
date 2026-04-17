@@ -246,6 +246,11 @@ def write_showcase_artifacts(
         y_label="Proxy SIF (a.u.)",
     )
 
+    # Interactive HTML dashboard
+    dashboard_path = output_path / "dashboard.html"
+    _write_showcase_dashboard_html(result, dashboard_path)
+    files["dashboard"] = dashboard_path
+
     return files
 
 
@@ -608,6 +613,167 @@ def _write_line_chart_svg(
 
     lines.append("</svg>")
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _write_showcase_dashboard_html(
+    result: ShowcaseExperimentResult,
+    path: Path,
+) -> None:
+    """Write a self-contained interactive Plotly HTML dashboard."""
+    ts = result.timeseries
+    s = result.summary
+    dates_json = json.dumps(ts["date"].tolist())
+    lai_json = json.dumps(ts["lai"].tolist())
+    cab_json = json.dumps(ts["cab"].tolist())
+    cw_json = json.dumps(ts["cw"].tolist())
+    rin_json = json.dumps(ts["Rin"].tolist())
+    direct_json = json.dumps(ts["Rin_direct"].tolist())
+    diffuse_json = json.dumps(ts["Rin_diffuse"].tolist())
+    obs_json = json.dumps(ts["proxy_sif_observed"].tolist())
+    init_json = json.dumps(ts["proxy_sif_initial"].tolist())
+    fit_json = json.dumps(ts["proxy_sif_fitted"].tolist())
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ARC-SCOPE Showcase Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+:root {{ font-family:Inter,system-ui,sans-serif; --bg:#f8fafc; --panel:#fff; --border:#e2e8f0;
+  --text:#0f172a; --muted:#64748b; --accent:#0f766e; }}
+body {{ margin:0; padding:1rem; background:var(--bg); color:var(--text); }}
+.shell {{ max-width:1200px; margin:0 auto; display:grid; gap:0.75rem; }}
+.panel {{ background:var(--panel); border:1px solid var(--border); border-radius:14px;
+  padding:1rem; box-shadow:0 1px 3px rgba(0,0,0,0.04); }}
+h1 {{ font-size:1.4rem; margin:0 0 0.3rem; }}
+.subtitle {{ color:var(--muted); font-size:0.9rem; margin-bottom:0.5rem; }}
+.kpis {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:0.5rem; }}
+.kpi {{ text-align:center; padding:0.6rem; }}
+.kpi-v {{ font-size:1.4rem; font-weight:700; color:var(--accent); }}
+.kpi-l {{ font-size:0.72rem; color:var(--muted); margin-top:0.15rem; }}
+.row {{ display:grid; gap:0.75rem; }}
+.col-2 {{ grid-template-columns:1fr 1fr; }}
+.plot {{ min-height:360px; }}
+.tabs {{ display:flex; gap:2px; background:var(--border); border-radius:10px; padding:3px; }}
+.tab {{ padding:0.45rem 0.9rem; border-radius:8px; cursor:pointer; font-size:0.82rem;
+  font-weight:500; border:none; background:transparent; color:var(--muted); }}
+.tab.active {{ background:var(--panel); color:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,0.06); }}
+.note {{ color:var(--muted); font-size:0.82rem; line-height:1.5; margin-top:0.5rem; }}
+@media(max-width:800px) {{ .col-2 {{ grid-template-columns:1fr; }} }}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="panel">
+    <h1>ARC-SCOPE Showcase Dashboard</h1>
+    <p class="subtitle">Core-dependency experiment &mdash; synthetic ARC retrieval, local weather, proxy SIF calibration</p>
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-v">{s.n_time_steps}</div><div class="kpi-l">Timesteps</div></div>
+      <div class="kpi"><div class="kpi-v">{s.peak_lai:.2f}</div><div class="kpi-l">Peak LAI</div></div>
+      <div class="kpi"><div class="kpi-v">{s.true_fqe:.4f}</div><div class="kpi-l">True fqe</div></div>
+      <div class="kpi"><div class="kpi-v">{s.optimized_fqe:.4f}</div><div class="kpi-l">Optimised fqe</div></div>
+      <div class="kpi"><div class="kpi-v">{s.relative_fqe_error_pct:.1f}%</div><div class="kpi-l">fqe error</div></div>
+      <div class="kpi"><div class="kpi-v">{s.rmse_optimized:.5f}</div><div class="kpi-l">Final RMSE</div></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('canopy')">Canopy State</button>
+      <button class="tab" onclick="showTab('radiation')">Radiation</button>
+      <button class="tab" onclick="showTab('calibration')">Calibration</button>
+      <button class="tab" onclick="showTab('residual')">Residuals</button>
+    </div>
+  </div>
+  <div id="tab-canopy">
+    <div class="row col-2">
+      <div class="panel"><div id="pLAI" class="plot"></div></div>
+      <div class="panel"><div id="pCab" class="plot"></div></div>
+    </div>
+  </div>
+  <div id="tab-radiation" style="display:none">
+    <div class="row col-2">
+      <div class="panel"><div id="pRad" class="plot"></div></div>
+      <div class="panel"><div id="pFrac" class="plot"></div></div>
+    </div>
+  </div>
+  <div id="tab-calibration" style="display:none">
+    <div class="panel"><div id="pSIF" class="plot" style="min-height:420px"></div></div>
+    <p class="note panel">The proxy model is <code>SIF = fqe &times; canopy_absorption &times; water_modifier &times; diffuse_gain &times; heat_penalty &times; illumination / 30</code>.
+    The optimiser adjusts <code>fqe</code> to minimise RMSE against noisy synthetic observations.</p>
+  </div>
+  <div id="tab-residual" style="display:none">
+    <div class="row col-2">
+      <div class="panel"><div id="pResid" class="plot"></div></div>
+      <div class="panel"><div id="pScatter" class="plot"></div></div>
+    </div>
+  </div>
+</div>
+<script>
+const D={dates_json},LAI={lai_json},Cab={cab_json},Cw={cw_json},
+  Rin={rin_json},Dir={direct_json},Dif={diffuse_json},
+  Obs={obs_json},Init={init_json},Fit={fit_json};
+const M={{t:40,l:55,r:20,b:40}}, C={{responsive:true}};
+const frac=Dir.map((d,i)=>Rin[i]>0?d/Rin[i]:0);
+const residInit=Obs.map((o,i)=>o-Init[i]), residFit=Obs.map((o,i)=>o-Fit[i]);
+
+function showTab(t) {{
+  ['canopy','radiation','calibration','residual'].forEach(n=>{{
+    document.getElementById('tab-'+n).style.display=n===t?'':'none';
+  }});
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().includes(t.slice(0,4))));
+  render();
+}}
+function render() {{
+  Plotly.newPlot('pLAI',[
+    {{x:D,y:LAI,mode:'lines+markers',name:'LAI',line:{{color:'#0f766e',width:2.5}},marker:{{size:6}}}},
+  ],{{title:'Leaf Area Index',margin:M,xaxis:{{title:'Date'}},yaxis:{{title:'LAI (m2/m2)'}}}},C);
+
+  Plotly.newPlot('pCab',[
+    {{x:D,y:Cab,mode:'lines+markers',name:'Cab',line:{{color:'#2563eb',width:2.5}},marker:{{size:6}}}},
+    {{x:D,y:Cw.map(v=>v*1000),mode:'lines+markers',name:'Cw (x1000)',yaxis:'y2',line:{{color:'#ea580c',width:2}},marker:{{size:5}}}},
+  ],{{title:'Chlorophyll & Water',margin:{{...M,r:55}},xaxis:{{title:'Date'}},
+    yaxis:{{title:'Cab (ug/cm2)',titlefont:{{color:'#2563eb'}}}},
+    yaxis2:{{title:'Cw x1000',overlaying:'y',side:'right',titlefont:{{color:'#ea580c'}}}},
+    legend:{{orientation:'h',y:-0.15}}}},C);
+
+  Plotly.newPlot('pRad',[
+    {{x:D,y:Dir,mode:'lines+markers',name:'Direct',line:{{color:'#c2410c',width:2.5}},marker:{{size:6}},fill:'tozeroy',fillcolor:'rgba(194,65,12,0.1)'}},
+    {{x:D,y:Dif,mode:'lines+markers',name:'Diffuse',line:{{color:'#2563eb',width:2.5}},marker:{{size:6}},fill:'tozeroy',fillcolor:'rgba(37,99,235,0.1)'}},
+  ],{{title:'Shortwave Radiation Partitioning',margin:M,xaxis:{{title:'Date'}},yaxis:{{title:'W/m2'}},legend:{{orientation:'h',y:-0.15}}}},C);
+
+  Plotly.newPlot('pFrac',[
+    {{x:D,y:frac,mode:'lines+markers',name:'Direct fraction',line:{{color:'#7c3aed',width:2.5}},marker:{{size:6}}}},
+  ],{{title:'Direct Fraction of Total Shortwave',margin:M,xaxis:{{title:'Date'}},yaxis:{{title:'Fraction',range:[0,1]}}}},C);
+
+  Plotly.newPlot('pSIF',[
+    {{x:D,y:Obs,mode:'markers',name:'Observed',marker:{{size:10,color:'#111827',symbol:'circle-open',line:{{width:2}}}}}},
+    {{x:D,y:Init,mode:'lines+markers',name:'Initial (fqe={s.initial_fqe:.4f})',line:{{color:'#dc2626',width:2,dash:'dash'}},marker:{{size:5}}}},
+    {{x:D,y:Fit,mode:'lines+markers',name:'Optimised (fqe={s.optimized_fqe:.4f})',line:{{color:'#16a34a',width:3}},marker:{{size:6}}}},
+  ],{{title:'Proxy SIF Calibration',margin:M,xaxis:{{title:'Date'}},yaxis:{{title:'Proxy SIF (a.u.)'}},
+    legend:{{orientation:'h',y:-0.12}}}},C);
+
+  Plotly.newPlot('pResid',[
+    {{x:D,y:residInit,mode:'lines+markers',name:'Initial residual',line:{{color:'#dc2626',width:2}},marker:{{size:5}}}},
+    {{x:D,y:residFit,mode:'lines+markers',name:'Fitted residual',line:{{color:'#16a34a',width:2}},marker:{{size:5}}}},
+    {{x:D,y:D.map(()=>0),mode:'lines',line:{{color:'#94a3b8',dash:'dash',width:1}},showlegend:false}},
+  ],{{title:'Residuals (Observed - Modelled)',margin:M,xaxis:{{title:'Date'}},yaxis:{{title:'Residual'}},
+    legend:{{orientation:'h',y:-0.15}}}},C);
+
+  Plotly.newPlot('pScatter',[
+    {{x:Obs,y:Fit,mode:'markers',name:'Optimised',marker:{{size:8,color:'#16a34a'}}}},
+    {{x:Obs,y:Init,mode:'markers',name:'Initial',marker:{{size:7,color:'#dc2626',symbol:'x'}}}},
+    {{x:[Math.min(...Obs),Math.max(...Obs)],y:[Math.min(...Obs),Math.max(...Obs)],mode:'lines',
+      line:{{color:'#94a3b8',dash:'dash',width:1}},showlegend:false}},
+  ],{{title:'Observed vs Modelled',margin:M,xaxis:{{title:'Observed'}},yaxis:{{title:'Modelled'}},
+    legend:{{orientation:'h',y:-0.15}}}},C);
+}}
+render();
+</script>
+</body>
+</html>"""
+    path.write_text(html, encoding="utf-8")
 
 
 if __name__ == "__main__":

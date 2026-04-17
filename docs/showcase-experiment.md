@@ -77,6 +77,19 @@ The generated [summary.json](assets/showcase/summary.json) file records:
 
 The Pages workflow regenerates these artifacts before each docs build so the charts and summary stay aligned with the current showcase code.
 
+## Interactive Dashboard
+
+The showcase generates a self-contained Plotly dashboard with tabbed panels for canopy state, radiation partitioning, proxy calibration curves, and residual analysis.
+
+[Open interactive dashboard](assets/showcase/dashboard.html){ .md-button .md-button--primary }
+
+The dashboard lets you:
+
+- Switch between **Canopy State**, **Radiation**, **Calibration**, and **Residuals** tabs
+- Zoom, pan, and hover on all plots for exact values
+- See the initial vs optimised fit side-by-side with observed data
+- Inspect residuals and the observed-vs-modelled scatter plot
+
 ## Radiation Partition
 
 ![Direct and diffuse shortwave forcing](assets/showcase/radiation_partition.svg)

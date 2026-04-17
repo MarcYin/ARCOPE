@@ -275,20 +275,35 @@ The explorer is the main reason this page exists. It lets you move from static f
   style="width: 100%; min-height: 1280px; border: 1px solid rgba(15, 23, 42, 0.12); border-radius: 18px; background: white;"
 ></iframe>
 
-### How To Read The Explorer
+### Explorer Tabs
 
-1. Click a map pixel to choose the location you want to inspect.
-2. Switch variable groups to move between inputs, reflectance, SIF, and thermal outputs.
-3. Pick a date to redraw the map and choose the spectrum snapshot timestamp.
-4. For spectral variables, choose one band or wavelength to turn the cube into a time series.
-5. Use the spectrum panel to inspect the full reflectance, fluorescence, or thermal shape for the selected pixel on the selected date.
+The explorer has five tabbed views, each designed for a different kind of question:
+
+**Overview** — The default dashboard. Shows a spatial map, pixel time series for all pinned locations, a value histogram, a spectrum panel, and a statistics table. Start here to get oriented.
+
+**Spatial** — Side-by-side maps for two dates of the same variable, plus a difference map. Use this to see how the field evolves between acquisitions or to spot spatial anomalies.
+
+**Time Series** — Deep dive into temporal patterns. The main panel shows all pinned pixels overlaid. A multi-variable panel shows all scalar variables in the same group. A first-vs-last scatter reveals whether each pixel changed over the season.
+
+**Spectra** — Full spectral inspection. Compare spectra across pinned pixels on one date, or compare the same pixel across multiple dates. Only active for spectral variables (rsot, LoF_, Lot_).
+
+**Compare** — Two-variable analysis. Pick a second variable from any group and see side-by-side maps, a pixel scatter plot, and dual-axis time series. Use this to check whether LAI drives reflectance, or how SIF and thermal outputs relate.
+
+### How to use pixel pinning
+
+- Click any map pixel to set it as the primary pin (P0).
+- Each click updates all time series, spectra, and statistics to that pixel.
+- Pin up to 6 pixels to overlay their time series and spectra for comparison.
+- Pins persist across tab switches so you can compare the same locations in different views.
 
 This means the same page can answer questions like:
 
-- how does a single reflectance band evolve through the season?
-- what does the full reflectance spectrum look like on a chosen date?
-- how do SIF and thermal signals differ at the same pixel?
-- where do the strongest spatial differences appear in the saved run?
+- How does a single reflectance band evolve through the season?
+- What does the full reflectance spectrum look like on a chosen date?
+- How do SIF and thermal signals differ at the same pixel?
+- Where do the strongest spatial differences appear in the saved run?
+- Does the pixel with peak LAI also show peak fluorescence?
+- How does the spectral shape change between green-up and senescence?
 
 ## Output Bundle
 
