@@ -1289,6 +1289,23 @@ def _serialise_explorer_variable(
 
     reduced = reduced.transpose(*ordered_dims)
     values = np.asarray(reduced.values, dtype=np.float32)
+
+    # --- Drop all-NaN timesteps before serialising ---
+    # ARC provides a continuous posterior, but if the weather forcing does
+    # not cover every retrieval date (e.g. the local CSV ends before the
+    # last S2 acquisition), SCOPE produces NaN outputs for those dates.
+    # Keeping them in the payload only clutters the explorer with blank
+    # maps, so we strip them here at the source.
+    time_axis = ordered_dims.index("time")
+    finite_mask = np.isfinite(values)
+    # Collapse everything except time to check per-timestep validity
+    axes_to_reduce = tuple(i for i in range(values.ndim) if i != time_axis)
+    has_data = finite_mask.any(axis=axes_to_reduce)  # shape (n_time,)
+    if not has_data.all():
+        keep = np.where(has_data)[0]
+        values = np.take(values, keep, axis=time_axis)
+        coords["time"] = [coords["time"][int(i)] for i in keep]
+
     rounded = np.round(values, 6)
     serialisable = rounded.astype(object)
     serialisable[~np.isfinite(rounded)] = None
