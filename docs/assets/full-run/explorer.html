@@ -194,7 +194,8 @@
 const PIN_COLORS = ["#0f766e","#2563eb","#ea580c","#7c3aed","#dc2626","#ca8a04"];
 const PLOTLY_CFG = { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ["lasso2d","select2d"] };
 const MARGIN = { t: 40, l: 55, r: 20, b: 40 };
-const S = { payload: null, group: null, key: null, key2: null, pins: [{y:0,x:0}], activeTab: "overview" };
+const S = { payload: null, group: null, key: null, key2: null, pins: [{y:0,x:0}], activeTab: "overview",
+            validIdx: [], validTimes: [] };
 
 /* ───── Helpers ───── */
 const $ = id => document.getElementById(id);
@@ -203,10 +204,31 @@ const var2Sel=$("var2Sel"), interpToggle=$("interpToggle");
 
 function entry(k)  { return k ? S.payload.variables[k] : null; }
 function curEntry() { return entry(S.key); }
-function di(e)     { return Math.min(dateSel.selectedIndex>=0?dateSel.selectedIndex:0, e.coords.time.length-1); }
+
+/* Test whether time index t has at least one finite pixel */
+function _sliceHasData(e, t) {
+  for(let y=0;y<e.data.length;y++)
+    for(let x=0;x<e.data[y].length;x++) {
+      const cell=e.data[y][x];
+      if(e.axis_name) { for(const v of cell[t]) if(v!=null&&isFinite(v)) return true; }
+      else { if(cell[t]!=null&&isFinite(cell[t])) return true; }
+    }
+  return false;
+}
+/* Compute valid (non-empty) time indices for the current variable and cache them */
+function computeValidDates(e) {
+  S.validIdx=[]; S.validTimes=[];
+  for(let t=0;t<e.coords.time.length;t++) {
+    if(_sliceHasData(e,t)) { S.validIdx.push(t); S.validTimes.push(e.coords.time[t]); }
+  }
+  if(!S.validIdx.length) { S.validIdx=e.coords.time.map((_,i)=>i); S.validTimes=e.coords.time.slice(); }
+}
+/* Map dropdown index → original time index */
+function di(e)     { const si=dateSel.selectedIndex>=0?dateSel.selectedIndex:0; return S.validIdx[Math.min(si,S.validIdx.length-1)]||0; }
 function bi(e)     { return e.axis_name ? Math.min(bandSel.selectedIndex>=0?bandSel.selectedIndex:0, e.coords[e.axis_name].length-1) : 0; }
 function valAt(e,y,x,t,b)   { const p=e.data[y][x]; return e.axis_name ? p[t][b] : p[t]; }
-function seriesAt(e,y,x,b)  { const p=e.data[y][x]; return e.axis_name ? p.map(r=>r[b]) : p.slice(); }
+/* Return a series keeping only valid dates */
+function seriesAt(e,y,x,b)  { const p=e.data[y][x]; return S.validIdx.map(t=> e.axis_name ? p[t][b] : p[t]); }
 function specAt(e,y,x,t)    { return e.axis_name ? e.data[y][x][t] : null; }
 function mapVals(e,t,b)     { return e.data.map(r=>r.map(c=>e.axis_name?c[t][b]:c[t])); }
 function flatVals(z)        { return z.flat().filter(v=>v!=null&&isFinite(v)); }
@@ -251,7 +273,8 @@ function buildVars() {
 }
 function buildDateBand() {
   const e=curEntry();
-  dateSel.innerHTML=e.coords.time.map(t=>`<option>${t}</option>`).join("");
+  computeValidDates(e);
+  dateSel.innerHTML=S.validTimes.map(t=>`<option>${t}</option>`).join("");
   if(e.axis_name) {
     bandSel.disabled=false;
     bandSel.innerHTML=e.coords[e.axis_name].map(b=>`<option>${b}</option>`).join("");
@@ -267,7 +290,7 @@ function buildInfo() {
     <span><strong>Pixel</strong>: y=${px.y}, x=${px.x}</span>
     <span><strong>Date</strong>: ${t}</span>
     <span><strong>Band</strong>: ${b}</span>
-    <span><strong>Grid</strong>: ${e.coords.y.length}&times;${e.coords.x.length}&times;${e.coords.time.length}</span>`;
+    <span><strong>Grid</strong>: ${e.coords.y.length}&times;${e.coords.x.length}&times;${S.validTimes.length} dates (${e.coords.time.length - S.validTimes.length} empty removed)</span>`;
 }
 function buildPins() {
   $("pinBar").innerHTML=S.pins.map((p,i)=>{
@@ -317,7 +340,7 @@ function renderOverview(e) {
   $("kpiBar").innerHTML=[
     {v:st.mean.toFixed(4),l:"Mean"},{v:st.std.toFixed(4),l:"Std Dev"},
     {v:st.min.toFixed(4),l:"Min"},{v:st.max.toFixed(4),l:"Max"},
-    {v:st.n,l:"Valid pixels"},{v:e.coords.time.length,l:"Timesteps"},
+    {v:st.n,l:"Valid pixels"},{v:S.validTimes.length,l:"Dates (valid)"},
   ].map(k=>`<div class="kpi"><div class="kpi-value">${k.v}</div><div class="kpi-label">${k.l}</div></div>`).join("");
 
   // Map
@@ -330,8 +353,8 @@ function renderOverview(e) {
               line:{color:"red",width:2}}]},PLOTLY_CFG);
   $("ovMap").on("plotly_click",handleMapClick);
 
-  // Time series (all pins)
-  const xs=numDates(e.coords.time);
+  // Time series (all pins) — uses only valid dates
+  const xs=numDates(S.validTimes);
   const traces=S.pins.map((p,i)=>{
     let s=seriesAt(e,p.y,p.x,bx), xp=xs.slice();
     const ip=interpDaily(xp,s); xp=ip.xs; s=ip.ys;
@@ -372,8 +395,9 @@ function renderOverview(e) {
 
 function renderSpatial(e) {
   const ti=di(e), bx=bi(e), z=mapVals(e,ti,bx);
-  // Second date = next or first
-  const ti2=Math.min(ti+1,e.coords.time.length-1);
+  // Second date = next valid date after current
+  const curPos=S.validIdx.indexOf(ti);
+  const ti2=S.validIdx[Math.min(curPos+1,S.validIdx.length-1)]||ti;
   const z2=mapVals(e,ti2,bx);
   const common={type:"heatmap",colorscale:"Viridis",hovertemplate:"x=%{x:.4f}<br>y=%{y:.4f}<br>%{z:.4f}<extra></extra>"};
 
@@ -393,9 +417,9 @@ function renderSpatial(e) {
 }
 
 function renderTemporal(e) {
-  const bx=bi(e), xs=numDates(e.coords.time);
+  const bx=bi(e), xs=numDates(S.validTimes);
 
-  // Main: all pins
+  // Main: all pins (valid dates only)
   const traces=S.pins.map((p,i)=>{
     let s=seriesAt(e,p.y,p.x,bx), xp=xs.slice();
     const ip=interpDaily(xp,s); xp=ip.xs; s=ip.ys;
@@ -406,19 +430,23 @@ function renderTemporal(e) {
   Plotly.newPlot("tsMain",traces,{title:`${e.label} — all pinned pixels`,margin:MARGIN,
     xaxis:{type:"date",title:"Date"},yaxis:{title:e.label},legend:{orientation:"h",y:-0.12}},PLOTLY_CFG);
 
-  // Multi-variable for pixel 0
+  // Multi-variable for pixel 0 (each variable uses its own valid dates)
   const px=S.pins[0];
   const groupEntries=Object.values(S.payload.variables).filter(v=>v.group===S.group&&!v.axis_name);
   const mTraces=groupEntries.slice(0,5).map((v,i)=>{
-    const s=seriesAt(v,px.y,px.x,0);
-    return {x:numDates(v.coords.time),y:s,mode:"lines+markers",name:v.label,yaxis:i===0?"y":"y",
+    // compute valid dates for this variable on the fly
+    const vIdx=[]; for(let t=0;t<v.coords.time.length;t++) if(_sliceHasData(v,t)) vIdx.push(t);
+    const vTimes=vIdx.map(t=>v.coords.time[t]);
+    const s=vIdx.map(t=>{ const p=v.data[px.y]?.[px.x]; return p ? (v.axis_name ? p[t][0] : p[t]) : null; });
+    return {x:numDates(vTimes),y:s,mode:"lines+markers",name:v.label,
             line:{width:2},marker:{size:4},hovertemplate:"%{x|%Y-%m-%d}: %{y:.4f}<extra></extra>"};
   });
   Plotly.newPlot("tsMulti",mTraces,{title:`Scalar variables at P0 (${px.y},${px.x})`,margin:MARGIN,
     xaxis:{type:"date"},legend:{orientation:"h",y:-0.15}},PLOTLY_CFG);
 
-  // Scatter: first vs last timestep
-  const z0=mapVals(e,0,bx), zN=mapVals(e,e.coords.time.length-1,bx);
+  // Scatter: first vs last valid timestep
+  const firstIdx=S.validIdx[0], lastIdx=S.validIdx[S.validIdx.length-1];
+  const z0=mapVals(e,firstIdx,bx), zN=mapVals(e,lastIdx,bx);
   const f0=flatVals(z0), fN=flatVals(zN);
   const n=Math.min(f0.length,fN.length);
   Plotly.newPlot("tsScatter",[{x:f0.slice(0,n),y:fN.slice(0,n),mode:"markers",
@@ -426,8 +454,8 @@ function renderTemporal(e) {
     hovertemplate:"first=%{x:.4f}<br>last=%{y:.4f}<extra></extra>"},
     {x:[Math.min(...f0),Math.max(...f0)],y:[Math.min(...f0),Math.max(...f0)],mode:"lines",
      line:{color:"#94a3b8",dash:"dash",width:1},showlegend:false}],
-    {title:`First vs last date`,margin:MARGIN,
-     xaxis:{title:e.coords.time[0]},yaxis:{title:e.coords.time[e.coords.time.length-1]}},PLOTLY_CFG);
+    {title:`First vs last valid date`,margin:MARGIN,
+     xaxis:{title:S.validTimes[0]},yaxis:{title:S.validTimes[S.validTimes.length-1]}},PLOTLY_CFG);
 }
 
 function renderSpectral(e) {
@@ -452,8 +480,9 @@ function renderSpectral(e) {
   Plotly.newPlot("specMain",traces,{title:`${e.label} spectra — ${e.coords.time[ti]}`,margin:MARGIN,
     xaxis:{title:e.axis_name+" (nm)"},yaxis:{title:e.label},legend:{orientation:"h",y:-0.12}},PLOTLY_CFG);
 
-  // Multi-date for pixel 0
-  const dateSample=[0,Math.floor(e.coords.time.length/2),e.coords.time.length-1];
+  // Multi-date for pixel 0 (sample from valid dates only)
+  const vn=S.validIdx.length;
+  const dateSample=[S.validIdx[0],S.validIdx[Math.floor(vn/2)],S.validIdx[vn-1]];
   const dTraces=dateSample.map((t,i)=>{
     const sp=specAt(e,px.y,px.x,t);
     return {x:ax,y:sp,mode:"lines",name:e.coords.time[t],
