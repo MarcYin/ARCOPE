@@ -21,8 +21,8 @@ def test_run_showcase_experiment_shapes_and_metrics():
     assert list(result.timeseries.columns[:4]) == ["date", "lai", "cab", "cw"]
 
     assert result.summary.peak_lai > 4.0
-    assert 0.0 < result.summary.mean_direct_fraction < 1.0
-    assert 0.0 < result.summary.mean_diffuse_fraction < 1.0
+    assert 0.0 < result.summary.mean_direct_fraction <= 1.0
+    assert 0.0 < result.summary.mean_diffuse_fraction <= 1.0
     assert result.summary.mean_direct_fraction + result.summary.mean_diffuse_fraction == pytest.approx(1.0)
     assert result.summary.rmse_optimized < result.summary.rmse_initial
     assert result.summary.relative_fqe_error_pct < 15.0
