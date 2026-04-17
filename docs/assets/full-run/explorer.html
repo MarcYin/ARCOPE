@@ -519,9 +519,8 @@ $("themeBtn").onclick=()=>{
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchTab(t.dataset.tab));
 
 /* ───── Bootstrap ───── */
-async function boot() {
-  const r=await fetch("explorer_payload.json");
-  S.payload=await r.json();
+function initFromPayload(data) {
+  S.payload=data;
   const params=new URLSearchParams(location.search);
   buildGroups();
   const rk=params.get("key"), rg=params.get("group");
@@ -533,7 +532,55 @@ async function boot() {
   if(params.get("tab")) switchTab(params.get("tab"));
   else render();
 }
-boot().catch(err=>{ document.body.innerHTML=`<pre style="color:#dc2626;padding:2rem">${err}</pre>`; });
+
+function showDropzone() {
+  const dz=document.createElement("div");
+  dz.style.cssText="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:999;gap:1rem;";
+  dz.innerHTML=`
+    <div style="text-align:center;max-width:520px;padding:2rem">
+      <h2 style="margin:0 0 0.5rem">Load explorer payload</h2>
+      <p style="color:var(--muted);line-height:1.6;margin:0 0 1rem">
+        The payload file could not be fetched automatically.<br>
+        This usually happens when opening the HTML directly from disk.<br>
+        Drop <code>explorer_payload.json</code> here or click to browse.
+      </p>
+      <input type="file" id="fileInput" accept=".json" style="display:none">
+      <button class="btn" onclick="document.getElementById('fileInput').click()" style="font-size:1rem;padding:0.6rem 1.2rem">
+        Choose explorer_payload.json
+      </button>
+      <p style="color:var(--muted);font-size:0.78rem;margin-top:1rem">
+        Or serve this directory: <code>python3 -m http.server 8000</code> then open
+        <a href="http://localhost:8000/explorer.html">localhost:8000/explorer.html</a>
+      </p>
+    </div>`;
+  document.body.appendChild(dz);
+
+  function loadFile(file) {
+    const reader=new FileReader();
+    reader.onload=()=>{ try { initFromPayload(JSON.parse(reader.result)); dz.remove(); } catch(e) { alert("Invalid JSON: "+e.message); } };
+    reader.readAsText(file);
+  }
+  dz.querySelector("#fileInput").onchange=e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); };
+  dz.ondragover=e=>{ e.preventDefault(); dz.style.background="var(--accent-light)"; };
+  dz.ondragleave=()=>{ dz.style.background="var(--bg)"; };
+  dz.ondrop=e=>{ e.preventDefault(); dz.style.background="var(--bg)"; if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); };
+}
+
+async function boot() {
+  // 1. Check for pre-embedded payload (set by build tools)
+  if(window.EXPLORER_PAYLOAD) { initFromPayload(window.EXPLORER_PAYLOAD); return; }
+
+  // 2. Try fetch (works when served via HTTP / GitHub Pages)
+  try {
+    const url=new URL("explorer_payload.json", location.href);
+    const r=await fetch(url);
+    if(r.ok) { initFromPayload(await r.json()); return; }
+  } catch(_) { /* fetch not available or CORS blocked */ }
+
+  // 3. Fallback: show drag-and-drop / file picker for local file:// usage
+  showDropzone();
+}
+boot();
 </script>
 </body>
 </html>
