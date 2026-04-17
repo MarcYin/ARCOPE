@@ -35,4 +35,3 @@ Thumbs.db
 .vscode/
 *.iml
 docs/assets/full-run/index.md
-docs/assets/full-run/artifact_manifest.json
