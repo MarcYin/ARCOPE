@@ -382,10 +382,10 @@ def _load_showcase_weather(times: np.ndarray) -> xr.Dataset:
         "pressure_hpa": "p",
         "wind_speed_ms": "u",
     }
-    # Widen the fetch window by 10 days on each side so the interpolation
-    # has weather data flanking every observation date (avoids NaN at edges).
-    start = pd.Timestamp(times.min()).to_pydatetime() - pd.Timedelta(days=10)
-    end = pd.Timestamp(times.max()).to_pydatetime() + pd.Timedelta(days=10)
+    # Load the full weather CSV without time-range clipping, then
+    # select the nearest weather row for each observation timestamp.
+    # Using nearest-neighbour avoids interpolation edge cases that
+    # produce NaN or zero on different Python/xarray versions.
     provider = LocalProvider(
         file_path=SHOWCASE_WEATHER_CSV,
         var_map=var_map,
@@ -393,12 +393,13 @@ def _load_showcase_weather(times: np.ndarray) -> xr.Dataset:
     )
     ds = provider.fetch(
         bounds=load_geojson_bounds(TEST_FIELD_GEOJSON),
-        time_range=(start, end),
+        time_range=(
+            pd.Timestamp("2000-01-01").to_pydatetime(),
+            pd.Timestamp("2100-01-01").to_pydatetime(),
+        ),
     )
     ds = ds.sortby("time")
-    # Interpolate weather onto observation times (the CSV may not have
-    # exact matching dates after extending the coverage window)
-    return ds.interp(time=times, method="linear")
+    return ds.sel(time=times, method="nearest")
 
 
 def _build_proxy_experiment_dataset(

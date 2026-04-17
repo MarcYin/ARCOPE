@@ -35,43 +35,43 @@
 <text class="tick" x="800.89" y="318" text-anchor="middle">2021-07-28</text>
 <line class="grid" x1="892.00" y1="42" x2="892.00" y2="290" />
 <text class="tick" x="892.00" y="318" text-anchor="middle">2021-08-05</text>
-<polyline fill="none" stroke="#111827" stroke-width="3" points="72.00,255.19 163.11,202.35 254.22,145.89 345.33,95.17 436.44,69.16 527.56,61.11 618.67,88.45 709.78,132.40 800.89,203.35 892.00,257.63" />
-<circle cx="72.00" cy="255.19" r="3.5" fill="#111827" />
-<circle cx="163.11" cy="202.35" r="3.5" fill="#111827" />
-<circle cx="254.22" cy="145.89" r="3.5" fill="#111827" />
-<circle cx="345.33" cy="95.17" r="3.5" fill="#111827" />
-<circle cx="436.44" cy="69.16" r="3.5" fill="#111827" />
+<polyline fill="none" stroke="#111827" stroke-width="3" points="72.00,255.40 163.11,205.86 254.22,148.18 345.33,95.25 436.44,70.69 527.56,61.11 618.67,90.06 709.78,132.48 800.89,204.64 892.00,257.19" />
+<circle cx="72.00" cy="255.40" r="3.5" fill="#111827" />
+<circle cx="163.11" cy="205.86" r="3.5" fill="#111827" />
+<circle cx="254.22" cy="148.18" r="3.5" fill="#111827" />
+<circle cx="345.33" cy="95.25" r="3.5" fill="#111827" />
+<circle cx="436.44" cy="70.69" r="3.5" fill="#111827" />
 <circle cx="527.56" cy="61.11" r="3.5" fill="#111827" />
-<circle cx="618.67" cy="88.45" r="3.5" fill="#111827" />
-<circle cx="709.78" cy="132.40" r="3.5" fill="#111827" />
-<circle cx="800.89" cy="203.35" r="3.5" fill="#111827" />
-<circle cx="892.00" cy="257.63" r="3.5" fill="#111827" />
+<circle cx="618.67" cy="90.06" r="3.5" fill="#111827" />
+<circle cx="709.78" cy="132.48" r="3.5" fill="#111827" />
+<circle cx="800.89" cy="204.64" r="3.5" fill="#111827" />
+<circle cx="892.00" cy="257.19" r="3.5" fill="#111827" />
 <line x1="682" y1="24" x2="702" y2="24" stroke="#111827" stroke-width="3" />
 <text class="legend" x="710" y="28">Observed proxy SIF</text>
-<polyline fill="none" stroke="#dc2626" stroke-width="3" points="72.00,272.68 163.11,249.61 254.22,223.72 345.33,200.31 436.44,189.36 527.56,185.03 618.67,198.65 709.78,219.98 800.89,248.95 892.00,272.90" />
-<circle cx="72.00" cy="272.68" r="3.5" fill="#dc2626" />
-<circle cx="163.11" cy="249.61" r="3.5" fill="#dc2626" />
-<circle cx="254.22" cy="223.72" r="3.5" fill="#dc2626" />
-<circle cx="345.33" cy="200.31" r="3.5" fill="#dc2626" />
-<circle cx="436.44" cy="189.36" r="3.5" fill="#dc2626" />
-<circle cx="527.56" cy="185.03" r="3.5" fill="#dc2626" />
-<circle cx="618.67" cy="198.65" r="3.5" fill="#dc2626" />
-<circle cx="709.78" cy="219.98" r="3.5" fill="#dc2626" />
-<circle cx="800.89" cy="248.95" r="3.5" fill="#dc2626" />
-<circle cx="892.00" cy="272.90" r="3.5" fill="#dc2626" />
+<polyline fill="none" stroke="#dc2626" stroke-width="3" points="72.00,272.90 163.11,251.30 254.22,224.87 345.33,200.48 436.44,190.17 527.56,185.16 618.67,199.50 709.78,220.14 800.89,249.65 892.00,272.83" />
+<circle cx="72.00" cy="272.90" r="3.5" fill="#dc2626" />
+<circle cx="163.11" cy="251.30" r="3.5" fill="#dc2626" />
+<circle cx="254.22" cy="224.87" r="3.5" fill="#dc2626" />
+<circle cx="345.33" cy="200.48" r="3.5" fill="#dc2626" />
+<circle cx="436.44" cy="190.17" r="3.5" fill="#dc2626" />
+<circle cx="527.56" cy="185.16" r="3.5" fill="#dc2626" />
+<circle cx="618.67" cy="199.50" r="3.5" fill="#dc2626" />
+<circle cx="709.78" cy="220.14" r="3.5" fill="#dc2626" />
+<circle cx="800.89" cy="249.65" r="3.5" fill="#dc2626" />
+<circle cx="892.00" cy="272.83" r="3.5" fill="#dc2626" />
 <line x1="682" y1="42" x2="702" y2="42" stroke="#dc2626" stroke-width="3" />
 <text class="legend" x="710" y="46">Initial fit</text>
-<polyline fill="none" stroke="#16a34a" stroke-width="3" points="72.00,255.35 163.11,203.69 254.22,145.71 345.33,93.31 436.44,68.78 527.56,59.10 618.67,89.59 709.78,137.33 800.89,202.21 892.00,255.83" />
-<circle cx="72.00" cy="255.35" r="3.5" fill="#16a34a" />
-<circle cx="163.11" cy="203.69" r="3.5" fill="#16a34a" />
-<circle cx="254.22" cy="145.71" r="3.5" fill="#16a34a" />
-<circle cx="345.33" cy="93.31" r="3.5" fill="#16a34a" />
-<circle cx="436.44" cy="68.78" r="3.5" fill="#16a34a" />
+<polyline fill="none" stroke="#16a34a" stroke-width="3" points="72.00,255.55 163.11,207.19 254.22,148.00 345.33,93.40 436.44,70.31 527.56,59.10 618.67,91.21 709.78,137.43 800.89,203.50 892.00,255.40" />
+<circle cx="72.00" cy="255.55" r="3.5" fill="#16a34a" />
+<circle cx="163.11" cy="207.19" r="3.5" fill="#16a34a" />
+<circle cx="254.22" cy="148.00" r="3.5" fill="#16a34a" />
+<circle cx="345.33" cy="93.40" r="3.5" fill="#16a34a" />
+<circle cx="436.44" cy="70.31" r="3.5" fill="#16a34a" />
 <circle cx="527.56" cy="59.10" r="3.5" fill="#16a34a" />
-<circle cx="618.67" cy="89.59" r="3.5" fill="#16a34a" />
-<circle cx="709.78" cy="137.33" r="3.5" fill="#16a34a" />
-<circle cx="800.89" cy="202.21" r="3.5" fill="#16a34a" />
-<circle cx="892.00" cy="255.83" r="3.5" fill="#16a34a" />
+<circle cx="618.67" cy="91.21" r="3.5" fill="#16a34a" />
+<circle cx="709.78" cy="137.43" r="3.5" fill="#16a34a" />
+<circle cx="800.89" cy="203.50" r="3.5" fill="#16a34a" />
+<circle cx="892.00" cy="255.40" r="3.5" fill="#16a34a" />
 <line x1="682" y1="60" x2="702" y2="60" stroke="#16a34a" stroke-width="3" />
 <text class="legend" x="710" y="64">Optimized fit</text>
 </svg>
