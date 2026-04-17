@@ -67,8 +67,8 @@ def show_era5_config() -> PipelineConfig:
         # Workflow determines which outputs SCOPE computes:
         #   "reflectance"     -> directional reflectance only (fastest)
         #   "fluorescence"    -> reflectance + SIF (F685, F740)
-        #   "thermal"         -> reflectance + thermal emission (LST)
-        #   "energy-balance"  -> full energy balance (SIF + thermal + fluxes)
+        #   "thermal"         -> reflectance + thermal emission from prescribed temperatures
+        #   "energy-balance"  -> coupled energy-balance wrapper (SIF + thermal + fluxes)
         scope_workflow="fluorescence",
 
         # Path to SCOPE assets directory (spectral databases, etc.)

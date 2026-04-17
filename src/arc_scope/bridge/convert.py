@@ -147,12 +147,19 @@ def arc_npz_to_scope_inputs(
     """
     try:
         from scope.io.prepare import read_s2_bio_inputs
-
-        return read_s2_bio_inputs(
-            npz_path, year=year, reference_dataset=reference_dataset
-        )
     except ImportError:
-        pass
+        read_s2_bio_inputs = None
+
+    if read_s2_bio_inputs is not None:
+        try:
+            return read_s2_bio_inputs(
+                npz_path, year=year, reference_dataset=reference_dataset
+            )
+        except (KeyError, TypeError, ValueError):
+            # ``scope-rtm`` may assume a dense ny*nx tensor layout, while ARC
+            # commonly persists valid-pixel-only arrays. Fall back to the
+            # standalone loader when the upstream helper cannot reshape the NPZ.
+            pass
 
     # Standalone fallback: replicate the NPZ loading logic
     npz_path = Path(npz_path)

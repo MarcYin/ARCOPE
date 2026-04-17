@@ -17,9 +17,57 @@ import xarray as xr
 
 from arc_scope.bridge.convert import arc_arrays_to_scope_inputs, arc_npz_to_scope_inputs
 from arc_scope.pipeline.config import PipelineConfig
+from arc_scope.weather.radiation import build_scope_spectral_forcing
 from arc_scope.utils.geometry import solar_position
 from arc_scope.utils.io import load_geojson_bounds, load_geojson_centroid
 from arc_scope.utils.types import PathLike
+
+ENERGY_BALANCE_REQUIRED_VARS = (
+    "Cab",
+    "Cw",
+    "Cdm",
+    "LAI",
+    "tts",
+    "tto",
+    "psi",
+    "Ta",
+    "ea",
+    "Ca",
+    "Oa",
+    "p",
+    "z",
+    "u",
+    "Cd",
+    "rwc",
+    "z0m",
+    "d",
+    "h",
+    "rss",
+    "rbs",
+    "Esun_sw",
+    "Esky_sw",
+    "Vcmax25",
+    "BallBerrySlope",
+)
+ENERGY_BALANCE_FLUORESCENCE_VARS = ("fqe", "Esun_", "Esky_")
+ENERGY_BALANCE_DEFAULTS = {
+    "Ca": 410.0,
+    "Oa": 209.0,
+    "Cd": 0.3,
+    "rwc": 0.0,
+    "rbs": 10.0,
+    "Vcmax25": 60.0,
+    "BallBerrySlope": 8.0,
+}
+CROP_HEIGHT_CAP_M = {
+    "wheat": 1.2,
+    "barley": 1.1,
+    "soybean": 1.1,
+    "potato": 0.8,
+    "rice": 1.3,
+    "maize": 2.5,
+    "corn": 2.5,
+}
 
 
 @dataclass
@@ -268,7 +316,7 @@ def prepare_scope_dataset(
     try:
         from scope.io.prepare import prepare_scope_input_dataset
 
-        return prepare_scope_input_dataset(
+        dataset = prepare_scope_input_dataset(
             weather_ds=weather_ds,
             observation_ds=observation_ds,
             post_bio_da=post_bio_da,
@@ -276,6 +324,7 @@ def prepare_scope_dataset(
             scope_root_path=config.scope_root_path,
             scope_options=config.resolved_scope_options,
         )
+        return _augment_scope_dataset(dataset, config)
     except ImportError:
         raise ImportError(
             "SCOPE is required for simulation. Install with: pip install arc-scope[scope]"
@@ -303,6 +352,7 @@ def run_scope_simulation(
         import torch
         from scope import SimulationConfig, ScopeGridRunner, campbell_lidf
         from scope.data import ScopeGridDataModule
+        from scope.io import validate_scope_dataset
         from scope.spectral.fluspect import FluspectModel
     except ImportError:
         raise ImportError(
@@ -310,15 +360,16 @@ def run_scope_simulation(
         )
 
     _patch_scope_fluspect_stacked_layers(FluspectModel, torch)
+    runner_dataset, spatial_valid = _prepare_runner_dataset(scope_dataset)
 
     # Determine time bounds from dataset
-    times = scope_dataset.coords["time"].values
+    times = runner_dataset.coords["time"].values
     start_time = pd.Timestamp(times.min())
     end_time = pd.Timestamp(times.max())
 
     # Build spatial bounds from dataset coordinates
-    x = scope_dataset.coords["x"].values
-    y = scope_dataset.coords["y"].values
+    x = runner_dataset.coords["x"].values
+    y = runner_dataset.coords["y"].values
     roi_bounds = (float(x.min()), float(y.min()), float(x.max()), float(y.max()))
 
     dtype_map = {"float32": torch.float32, "float64": torch.float64}
@@ -344,17 +395,329 @@ def run_scope_simulation(
     )
 
     # Build data module with required variables
-    required_vars = list(scope_dataset.data_vars)
-    data_module = ScopeGridDataModule(scope_dataset, sim_config, required_vars=required_vars)
+    required_vars = list(runner_dataset.data_vars)
+    data_module = ScopeGridDataModule(runner_dataset, sim_config, required_vars=required_vars)
 
     # Build variable mapping (identity for the prepared dataset)
-    varmap = {v: v for v in scope_dataset.data_vars}
+    varmap = {v: v for v in runner_dataset.data_vars}
 
-    return runner.run_scope_dataset(
+    if config.scope_workflow == "energy-balance":
+        output = _run_coupled_energy_balance(
+            runner,
+            data_module,
+            varmap=varmap,
+            scope_dataset=runner_dataset,
+            validate_scope_dataset=validate_scope_dataset,
+            soil_heat_method=int(config.resolved_scope_options.get("soil_heat_method", 2)),
+        )
+        return _apply_spatial_mask(output, spatial_valid)
+
+    validate_scope_dataset(
+        runner_dataset,
+        workflow="scope",
+        scope_options=config.resolved_scope_options,
+    )
+    output = runner.run_scope_dataset(
         data_module,
         varmap=varmap,
         scope_options=config.resolved_scope_options,
     )
+    return _apply_spatial_mask(output, spatial_valid)
+
+
+def _run_coupled_energy_balance(
+    runner: Any,
+    data_module: Any,
+    *,
+    varmap: dict[str, str],
+    scope_dataset: xr.Dataset,
+    validate_scope_dataset: Any,
+    soil_heat_method: int,
+) -> xr.Dataset:
+    """Execute the explicit coupled energy-balance workflows and merge outputs.
+
+    ``scope-rtm`` exposes coupled fluorescence and coupled thermal as two
+    separate entry points. ARC-SCOPE's ``energy-balance`` workflow wraps both
+    so users can inspect the combined SIF, thermal, and flux outputs from one
+    prepared dataset.
+    """
+    validate_scope_dataset(scope_dataset, workflow="energy-balance-fluorescence")
+    validate_scope_dataset(scope_dataset, workflow="energy-balance-thermal")
+    _validate_hidden_energy_balance_inputs(scope_dataset)
+
+    fluorescence_output = runner.run_energy_balance_fluorescence_dataset(
+        data_module,
+        varmap=varmap,
+        soil_heat_method=soil_heat_method,
+    )
+    thermal_output = runner.run_energy_balance_thermal_dataset(
+        data_module,
+        varmap=varmap,
+        soil_heat_method=soil_heat_method,
+    )
+
+    combined = thermal_output.copy()
+    for name, data_array in fluorescence_output.data_vars.items():
+        if name not in combined.data_vars:
+            combined[name] = data_array
+
+    combined.attrs.update(fluorescence_output.attrs)
+    combined.attrs.update(thermal_output.attrs)
+    combined.attrs["scope_product"] = "energy_balance"
+    combined.attrs["scope_components"] = "energy,physiology,fluorescence,thermal"
+    combined.attrs["arc_scope_energy_balance"] = (
+        "Merged coupled fluorescence and thermal branches from scope-rtm 0.2.x"
+    )
+    return combined
+
+
+def _prepare_runner_dataset(scope_dataset: xr.Dataset) -> tuple[xr.Dataset, xr.DataArray | None]:
+    """Fill off-field gaps for simulation while preserving the real mask.
+
+    ``scope-rtm`` stacks every y/x/time cell into dense batches and converts
+    NaNs to zero internally. That can break workflows which require strictly
+    positive leafbio state, especially coupled fluorescence. ARC-SCOPE keeps
+    the authored dataset unchanged, but uses a filled copy for execution and
+    reapplies the original spatial validity mask to outputs afterwards.
+    """
+    spatial_valid = _spatial_valid_mask(scope_dataset)
+    if spatial_valid is None:
+        return scope_dataset, None
+
+    runner_dataset = scope_dataset.copy(deep=True)
+    for name, data_array in runner_dataset.data_vars.items():
+        if not _is_numeric_dataarray(data_array):
+            continue
+        if not {"y", "x"}.issubset(data_array.dims):
+            continue
+        fill_value = _fill_value_for_runner(name, data_array)
+        if fill_value is None:
+            continue
+        runner_dataset[name] = data_array.where(np.isfinite(data_array), other=fill_value)
+    return runner_dataset, spatial_valid
+
+
+def _spatial_valid_mask(scope_dataset: xr.Dataset) -> xr.DataArray | None:
+    """Infer the field footprint from finite biophysical state."""
+    for name in ("LAI", "Cab", "Cw", "Cdm"):
+        if name not in scope_dataset:
+            continue
+        data_array = scope_dataset[name]
+        if not {"y", "x"}.issubset(data_array.dims):
+            continue
+        reduce_dims = [dim for dim in data_array.dims if dim not in {"y", "x"}]
+        mask = np.isfinite(data_array)
+        if reduce_dims:
+            mask = mask.any(dim=reduce_dims)
+        if bool(mask.any().item()):
+            return mask.astype(bool)
+    return None
+
+
+def _fill_value_for_runner(name: str, data_array: xr.DataArray) -> float | None:
+    """Choose a finite placeholder for masked-out pixels during execution."""
+    finite = data_array.where(np.isfinite(data_array))
+    if finite.count().item() == 0:
+        return 0.01 if name == "fqe" else 0.0
+
+    median_value = float(finite.median(skipna=True).item())
+    if name == "fqe":
+        return max(median_value, 0.01)
+    if name in {"LAI", "Cab", "Cw", "Cdm", "Vcmax25", "BallBerrySlope"}:
+        return max(median_value, 1e-6)
+    return median_value
+
+
+def _apply_spatial_mask(output: xr.Dataset, spatial_valid: xr.DataArray | None) -> xr.Dataset:
+    """Restore the authored field footprint on simulation outputs."""
+    if spatial_valid is None:
+        return output
+
+    masked = output.copy()
+    for name, data_array in masked.data_vars.items():
+        if {"y", "x"}.issubset(data_array.dims) and _is_numeric_dataarray(data_array):
+            masked[name] = data_array.where(spatial_valid)
+    return masked
+
+
+def _validate_hidden_energy_balance_inputs(scope_dataset: xr.Dataset) -> None:
+    """Check energy-balance inputs that upstream validation does not enforce."""
+    missing = [name for name in ENERGY_BALANCE_REQUIRED_VARS if name not in scope_dataset]
+    missing.extend(
+        name
+        for name in ENERGY_BALANCE_FLUORESCENCE_VARS
+        if name not in scope_dataset
+    )
+    if missing:
+        raise ValueError(
+            "Coupled energy-balance workflow is missing required variables: "
+            + ", ".join(sorted(set(missing)))
+        )
+
+
+def _augment_scope_dataset(dataset: xr.Dataset, config: PipelineConfig) -> xr.Dataset:
+    """Add repo-owned forcing variables needed by richer SCOPE workflows.
+
+    ``scope-rtm`` ships a generic dataset preparation function that covers the
+    reflectance-era core variables. The fluorescence and thermal branches need
+    additional forcing that ARC-SCOPE can derive from the prepared dataset:
+
+    - spectral direct/diffuse irradiance from broadband ``Rin`` and solar angle
+    - a diagnostic fluorescence efficiency field ``fqe``
+    - explicit aerodynamic and biochemistry defaults for coupled energy balance
+    - diagnostic canopy/soil temperatures only for the standalone thermal workflow
+
+    The repo now distinguishes between:
+
+    - ``thermal``: prescribed canopy/soil temperatures for thermal radiance only
+    - ``energy-balance``: upstream coupled fluorescence + thermal solvers
+    """
+    scope_options = config.resolved_scope_options
+    is_energy_balance = config.scope_workflow == "energy-balance"
+    needs_fluorescence = bool(scope_options.get("calc_fluor"))
+    needs_thermal = bool(scope_options.get("calc_planck"))
+    needs_spectral_forcing = needs_fluorescence or needs_thermal or is_energy_balance
+    if not needs_spectral_forcing:
+        return dataset
+
+    augmented = dataset.copy()
+
+    if needs_spectral_forcing:
+        spectral_forcing = build_scope_spectral_forcing(
+            rin=augmented["Rin"],
+            sza=augmented["tts"],
+            time_coord=augmented.coords["time"],
+            atmos_file=augmented.attrs.get("atmos_file"),
+            scope_root_path=config.scope_root_path,
+        )
+        for name, data_array in spectral_forcing.data_vars.items():
+            augmented[name] = data_array.astype(np.float64, copy=False)
+
+    if is_energy_balance:
+        energy_balance_state = _energy_balance_state(augmented, config)
+        for name, data_array in energy_balance_state.data_vars.items():
+            if name not in augmented:
+                augmented[name] = data_array.astype(np.float64, copy=False)
+        if "fqe" not in augmented:
+            augmented["fqe"] = _diagnostic_fqe(augmented)
+        return augmented
+
+    if needs_fluorescence and "fqe" not in augmented:
+        augmented["fqe"] = _diagnostic_fqe(augmented)
+
+    if needs_thermal:
+        thermal_state = _diagnostic_thermal_state(augmented)
+        for name, data_array in thermal_state.data_vars.items():
+            augmented[name] = data_array.astype(np.float64, copy=False)
+
+    return augmented
+
+
+def _energy_balance_state(dataset: xr.Dataset, config: PipelineConfig) -> xr.Dataset:
+    """Derive or default the extra state needed by the coupled solver.
+
+    ``scope-rtm`` does not currently prepare these variables from the generic
+    input dataset. ARC-SCOPE provides transparent defaults anchored to SCOPE's
+    own example values plus simple canopy-geometry heuristics for crop height,
+    roughness, and soil resistance.
+    """
+    lai = dataset["LAI"].clip(min=0.0)
+    smc = dataset["SMC"] if "SMC" in dataset else _constant_like(lai, 0.25)
+    crop_height_cap = CROP_HEIGHT_CAP_M.get(config.crop_type.lower(), 1.5)
+
+    h = (0.12 + 0.18 * lai).clip(min=0.1, max=crop_height_cap)
+    d = (0.67 * h).clip(min=0.05)
+    z0m = (0.13 * h).clip(min=0.01)
+    z = xr.where(h + 2.0 > 10.0, h + 2.0, 10.0)
+    rss = (500.0 - 350.0 * _normalise_state(smc)).clip(min=75.0, max=500.0)
+
+    return xr.Dataset(
+        {
+            "Ca": _constant_like(lai, ENERGY_BALANCE_DEFAULTS["Ca"]),
+            "Oa": _constant_like(lai, ENERGY_BALANCE_DEFAULTS["Oa"]),
+            "z": z,
+            "Cd": _constant_like(lai, ENERGY_BALANCE_DEFAULTS["Cd"]),
+            "rwc": _constant_like(lai, ENERGY_BALANCE_DEFAULTS["rwc"]),
+            "z0m": z0m,
+            "d": d,
+            "h": h,
+            "rss": rss,
+            "rbs": _constant_like(lai, ENERGY_BALANCE_DEFAULTS["rbs"]),
+            "Vcmax25": _constant_like(lai, ENERGY_BALANCE_DEFAULTS["Vcmax25"]),
+            "BallBerrySlope": _constant_like(
+                lai,
+                ENERGY_BALANCE_DEFAULTS["BallBerrySlope"],
+            ),
+        }
+    )
+
+
+def _diagnostic_fqe(dataset: xr.Dataset) -> xr.DataArray:
+    """Build a bounded fluorescence-efficiency field from retrieval state."""
+    cab_norm = _normalise_state(dataset["Cab"])
+    cw_norm = _normalise_state(dataset["Cw"])
+    lai_norm = _normalise_state(dataset["LAI"])
+    fqe = 0.006 + 0.012 * (0.5 * cab_norm + 0.35 * cw_norm + 0.15 * lai_norm)
+    return fqe.clip(min=0.005, max=0.02).rename("fqe")
+
+
+def _diagnostic_thermal_state(dataset: xr.Dataset) -> xr.Dataset:
+    """Approximate canopy and soil temperatures for SCOPE thermal radiance.
+
+    The thermal workflow in ``scope-rtm`` expects explicit sunlit/shaded canopy
+    and soil temperatures. ARC-SCOPE does not yet solve the full energy balance
+    in-repo, so the thermal demonstration uses a transparent diagnostic forcing
+    derived from air temperature, shortwave load, canopy density, wind, leaf
+    water, and soil moisture. The resulting temperatures remain spatially and
+    temporally varying across the field.
+    """
+    ta = dataset["Ta"]
+    rin = dataset["Rin"].clip(min=0.0)
+    wind = dataset["u"] if "u" in dataset else xr.zeros_like(ta) + 2.0
+    lai = dataset["LAI"].clip(min=0.0)
+    cw = dataset["Cw"].clip(min=0.0)
+    smc = dataset["SMC"] if "SMC" in dataset else xr.zeros_like(lai) + 0.25
+
+    solar_load = (rin / 900.0).clip(min=0.0, max=1.5)
+    wind_cooling = 1.0 / (1.0 + 0.18 * wind.clip(min=0.0))
+    canopy_cover = 1.0 - np.exp(-0.55 * lai)
+    soil_exposure = np.exp(-0.65 * lai)
+    water_cooling = 1.1 - 0.2 * _normalise_state(cw)
+    soil_dryness = 1.15 - 0.3 * _normalise_state(smc)
+
+    tcu = ta + 0.4 + 4.2 * solar_load * wind_cooling * water_cooling * (0.35 + 0.65 * canopy_cover)
+    tch = ta + 0.2 + 2.1 * solar_load * wind_cooling * water_cooling * (0.25 + 0.75 * canopy_cover)
+    tsu = ta + 1.0 + 7.0 * solar_load * soil_exposure * soil_dryness / (1.0 + 0.12 * wind.clip(min=0.0))
+    tsh = ta + 0.5 + 3.4 * solar_load * soil_exposure * soil_dryness / (1.0 + 0.18 * wind.clip(min=0.0))
+
+    return xr.Dataset(
+        {
+            "Tcu": tcu.clip(min=-20.0, max=60.0),
+            "Tch": tch.clip(min=-20.0, max=60.0),
+            "Tsu": tsu.clip(min=-20.0, max=75.0),
+            "Tsh": tsh.clip(min=-20.0, max=75.0),
+        }
+    )
+
+
+def _normalise_state(data_array: xr.DataArray) -> xr.DataArray:
+    """Normalise a field to 0-1 while remaining robust to constant inputs."""
+    finite = data_array.where(np.isfinite(data_array))
+    min_value = float(finite.min(skipna=True).item())
+    max_value = float(finite.max(skipna=True).item())
+    if not np.isfinite(min_value) or not np.isfinite(max_value) or abs(max_value - min_value) < 1e-9:
+        return xr.zeros_like(data_array, dtype=np.float64) + 0.5
+    return ((data_array - min_value) / (max_value - min_value)).clip(min=0.0, max=1.0)
+
+
+def _constant_like(data_array: xr.DataArray, value: float) -> xr.DataArray:
+    """Return a floating-point field with the same shape and coordinates."""
+    return xr.zeros_like(data_array, dtype=np.float64) + value
+
+
+def _is_numeric_dataarray(data_array: xr.DataArray) -> bool:
+    """Return whether a DataArray contains numeric values."""
+    return np.issubdtype(data_array.dtype, np.number)
 
 
 def _patch_scope_fluspect_stacked_layers(fluspect_model_cls: type, torch_module: Any) -> None:

@@ -1,2 +1,4 @@
 workflow,n_input_vars,n_output_vars,n_time_steps,selected_outputs
-reflectance,21,23,53,rsot;rso;rsos;rsod
+reflectance,21,23,9,rsot;rso;rsos;rsod
+fluorescence,26,47,9,LoF_;F685;F740;LoutF
+thermal,29,30,9,Lot_;Loutt;Eoutt;LotBB_

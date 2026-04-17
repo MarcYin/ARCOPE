@@ -1,6 +1,9 @@
 """Tests for ARC-to-SCOPE data conversion."""
 from __future__ import annotations
 
+import sys
+import types
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -125,6 +128,35 @@ def test_npz_roundtrip(tmp_npz_path):
     # The mask is 10x10 with first and last rows masked
     assert bio_da.sizes["y"] == 10
     assert bio_da.sizes["x"] == 10
+
+
+def test_npz_roundtrip_falls_back_when_scope_loader_rejects_valid_pixel_layout(
+    tmp_npz_path,
+    monkeypatch,
+):
+    """Fallback to the standalone loader when the upstream helper raises."""
+    scope_module = types.ModuleType("scope")
+    io_module = types.ModuleType("scope.io")
+    prepare_module = types.ModuleType("scope.io.prepare")
+
+    def _broken_loader(*args, **kwargs):
+        raise ValueError("cannot reshape array of size 107198 into shape (...)")
+
+    prepare_module.read_s2_bio_inputs = _broken_loader
+    io_module.prepare = prepare_module
+    scope_module.io = io_module
+
+    monkeypatch.setitem(sys.modules, "scope", scope_module)
+    monkeypatch.setitem(sys.modules, "scope.io", io_module)
+    monkeypatch.setitem(sys.modules, "scope.io.prepare", prepare_module)
+
+    bio_da, scale_da = arc_npz_to_scope_inputs(tmp_npz_path, year=2021)
+
+    assert bio_da.dims == ("y", "x", "band", "time")
+    assert scale_da.dims == ("y", "x", "band")
+    assert bio_da.sizes["y"] == 10
+    assert bio_da.sizes["x"] == 10
+    assert bio_da.sizes["time"] == 6
 
 
 def test_single_pixel_field():

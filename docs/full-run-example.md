@@ -3,19 +3,22 @@ title: Real Full Run
 icon: material/satellite-uplink
 ---
 
-# Real ARC -> SCOPE Experiment
+# End-to-End ARC -> SCOPE Walkthrough
 
-The heavyweight docs path is a real end-to-end ARC-to-SCOPE run over the bundled Belgium/Flanders test field in **2021**.
+This page documents the real showcase path from the beginning to the end of the pipeline: one ARC retrieval, one shared weather and geometry alignment stage, then three SCOPE workflows that produce reflectance, SIF, and thermal outputs you can browse interactively.
 
-[Run the experiment](#run-the-experiment){ .md-button .md-button--primary }
+[Open the explorer](assets/full-run/explorer.html){ .md-button .md-button--primary }
 [Quick start](quickstart.md){ .md-button }
 [Installation](installation.md){ .md-button }
 
-!!! success "Validated docs path"
-    This page documents the real ARC retrieval plus the validated SCOPE `reflectance` workflow. The saved docs figures come from that real run.
+!!! success "What is real in this page"
+    The published bundle is generated from a real ARC retrieval over the bundled Belgium field in 2021, with real acquisition dates, real forcing alignment, real SCOPE-ready inputs, and saved model outputs.
 
-!!! warning "What this page does not claim"
-    Other SCOPE workflows exist in the broader package surface, but this page does **not** present `fluorescence` or `thermal` as the primary validated docs example.
+!!! info "What is compact in the published bundle"
+    The GitHub Pages artifact keeps the explorer payload downsampled across spatial and spectral axes so the browser stays responsive. The figure suite and CSV inventories are generated from the actual saved run outputs.
+
+!!! warning "What is not in the checked-in site bundle"
+    The local full run writes per-workflow NetCDF inputs and outputs. Those heavy files are not checked into the docs bundle, so the published page focuses on figures, explorer payloads, and audit-friendly CSV summaries.
 
 <div class="grid cards" markdown>
 
@@ -23,106 +26,19 @@ The heavyweight docs path is a real end-to-end ARC-to-SCOPE run over the bundled
 
     ---
 
-    Belgium test field, wheat crop type, 2021 season, real ERA5 weather, and the reflectance workflow.
+    Belgium/Flanders test field, crop type `wheat`, field-year `2021`, local weather dates `2021-05-25` to `2021-08-05`.
 
--   :material-database-eye: __Real inputs__
-
-    ---
-
-    Sentinel-2 acquisitions, ARC biophysical retrieval, observation geometry, weather forcing, and SCOPE-ready datasets.
-
--   :material-chart-line-variant: __Real outputs__
+-   :material-layers-triple: __Model stages__
 
     ---
 
-    Seasonal reflectance curves, spatial snapshot maps, figure bundle, and run metadata for the docs site.
+    ARC retrieval first, then forcing and geometry alignment, then SCOPE `reflectance`, `fluorescence`, and `thermal`.
 
-</div>
-
-## Runtime Setup
-
-=== "Pixi"
-
-    The fastest reproducible path in this repo:
-
-    ```bash
-    pixi install
-    pixi run fetch-scope-upstream
-    pixi run check-runtime
-    ```
-
-=== "Python package"
-
-    If you want the standard extras route:
-
-    ```bash
-    pip install "arc-scope[all]"
-    scope fetch-upstream --dest ./upstream/SCOPE
-    ```
-
-For ERA5 weather you also need a working `~/.cdsapirc`.
-
-## Run The Experiment
-
-=== "Full run"
-
-    ```bash
-    python3 -m arc_scope.experiments.dual_workflow \
-      --scope-root-path ./upstream/SCOPE \
-      --workflow reflectance \
-      --dtype float32 \
-      --output-dir ./full-run-output
-    ```
-
-=== "Runtime check only"
-
-    ```bash
-    python3 -m arc_scope.experiments.dual_workflow \
-      --scope-root-path ./upstream/SCOPE \
-      --check-runtime
-    ```
-
-The implementation still lives at `arc_scope.experiments.dual_workflow` for compatibility, but the public docs contract is the real reflectance-backed experiment shown here.
-
-## Pipeline At A Glance
-
-<div class="grid cards" markdown>
-
--   :material-image-search: __1. ARC retrieval__
+-   :material-chart-box-outline: __What you can inspect__
 
     ---
 
-    `retrieve_arc()` pulls Sentinel-2 observations over the field and retrieves crop biophysical state for the season.
-
--   :material-swap-horizontal-bold: __2. Bridge conversion__
-
-    ---
-
-    `bridge_arc_to_scope()` turns ARC outputs into SCOPE-shaped xarray structures with physical units and spatial coordinates.
-
--   :material-weather-partly-cloudy: __3. Weather forcing__
-
-    ---
-
-    `fetch_weather()` downloads ERA5 weather for the field and season.
-
--   :material-angle-acute: __4. Observation geometry__
-
-    ---
-
-    `build_observation_dataset()` derives solar and viewing angles from the field centroid and acquisition dates.
-
--   :material-database-cog: __5. Input preparation__
-
-    ---
-
-    `prepare_scope_dataset()` merges retrieval, forcing, geometry, and upstream SCOPE assets into one runnable dataset.
-
--   :material-play-circle-outline: __6. Forward simulation__
-
-    ---
-
-    `run_scope_simulation()` executes the real SCOPE `reflectance` workflow and produces spectral canopy outputs.
+    Seasonal trajectories, snapshot maps, pixel-level time series, selected-band traces, and full spectra at one date.
 
 </div>
 
@@ -132,166 +48,272 @@ The implementation still lives at `arc_scope.experiments.dual_workflow` for comp
 | --- | --- |
 | Field | Bundled Belgium test field |
 | Crop type | `wheat` |
-| Date window | `2021-05-15` to `2021-10-01` |
-| Weather provider | `era5` |
-| SCOPE workflow | `reflectance` |
-| Practical docs command | `--dtype float32` |
+| Retrieval window | `2021-05-25` to `2021-08-05` |
+| Retrieval source | Sentinel-2 via ARC |
+| Forcing source in published bundle | Bundled local weather CSV |
+| SCOPE workflows | `reflectance`, `fluorescence`, `thermal` |
+| Explorer focus | Pixel/date/band/spectrum browsing |
 
-## Input Surfaces
+## Run The Same Example
 
-=== "What goes in"
+=== "Pixi task"
 
-    | Input | Main variables | Why it matters |
-    | --- | --- | --- |
-    | Field boundary | GeoJSON polygon | Defines the ARC retrieval footprint and map extent |
-    | Acquisition timeline | Sentinel-2 observation dates | Drives ARC assimilation and observation timestamps |
-    | Weather forcing | `Rin`, `Rli`, `Ta`, `ea`, `p`, `u` | Defines the atmospheric state for SCOPE |
-    | Observation geometry | solar/viewing zenith and azimuth | Defines the sun-sensor geometry |
-    | ARC crop state | `LAI`, `Cab`, `Cw`, plus the broader parameter set | Controls canopy density, absorption, and water state |
+    ```bash
+    pixi install
+    pixi run fetch-scope-upstream
+    pixi run check-runtime
+    pixi run real-experiment-docs
+    ```
 
-=== "How to read them"
+=== "Direct CLI"
 
-    - `LAI` controls how much canopy the light interacts with.
-    - `Cab` controls chlorophyll absorption and therefore spectral response.
-    - `Cw` controls leaf water content and affects water-sensitive wavelengths.
-    - `Rin` and `Rli` are the incoming shortwave and longwave fluxes used during simulation.
-    - `tts` comes from solar zenith angle and is one of the key geometry drivers passed into SCOPE.
+    ```bash
+    python3 -m arc_scope.experiments.dual_workflow \
+      --start-date 2021-05-25 \
+      --end-date 2021-08-05 \
+      --weather-provider local \
+      --weather-file ./src/arc_scope/data/showcase_weather.csv \
+      --scope-root-path ./upstream/SCOPE \
+      --workflow reflectance \
+      --workflow fluorescence \
+      --workflow thermal \
+      --dtype float32 \
+      --output-dir ./docs/assets/full-run
+    ```
 
-## Output Surfaces
+=== "Optional coupled energy balance"
 
-=== "Main output families"
+    ```bash
+    python3 -m arc_scope.experiments.dual_workflow \
+      --start-date 2021-05-25 \
+      --end-date 2021-08-05 \
+      --weather-provider local \
+      --weather-file ./src/arc_scope/data/showcase_weather.csv \
+      --scope-root-path ./upstream/SCOPE \
+      --workflow reflectance \
+      --workflow energy-balance \
+      --dtype float32 \
+      --output-dir ./full-run-output-energy-balance
+    ```
 
-    | Output family | Example variables | Meaning |
-    | --- | --- | --- |
-    | Leaf optics | `leaf_refl`, `leaf_tran` | Leaf-scale reflectance and transmittance |
-    | Canopy reflectance | `rso`, `rsot` | Directional canopy reflectance outputs |
-    | Spectral transport | `rdd`, `tdd`, `rdot`, `rddt` | Intermediate and directional radiative terms |
+The published docs bundle uses the validated reflectance, fluorescence, and thermal run because it already demonstrates the full start-to-finish story with SIF and thermal signals. The coupled `energy-balance` branch is available, but it is materially heavier to regenerate.
 
-=== "Validated run summary"
-
-    For the checked-in Belgium 2021 docs bundle, the saved SCOPE output grid is:
-
-    - `y = 45`
-    - `x = 23`
-    - `time = 53`
-    - `wavelength = 2001`
-
-    The selected showcase outputs in that run are `rsot`, `rso`, `rsos`, and `rsod`.
-
-## Output Bundle
-
-The local heavy run writes a report-style artifact directory with retrieval products, forcing products, SCOPE input/output datasets, CSV inventories, and a generated Markdown report.
-
-The GitHub Pages docs bundle keeps only the lightweight files needed for the site:
-
-- figure assets
-- `run_config.json`
-- `environment.json`
-- `workflow_metrics.csv`
-- `variable_inventory.csv`
-- `acquisition_table.csv`
-
-This keeps the docs site small while still showing real outputs from the validated run.
-
-## Figure Gallery
-
-### Field And Forcing
+## Start To Finish
 
 <div class="grid cards" markdown>
 
--   __Field boundary__
+-   :material-image-search: __1. Retrieve crop state__
 
     ---
 
-    ![Field boundary](assets/full-run/figures/field_boundary.png)
+    `retrieve_arc()` searches Sentinel-2, caches scenes, and reconstructs seasonal crop state over the field.
 
-    Geographic footprint used for ARC retrieval and all downstream maps.
-
--   __Acquisition timeline__
+-   :material-swap-horizontal-bold: __2. Bridge and align__
 
     ---
 
-    ![Acquisition timeline](assets/full-run/figures/acquisition_timeline.svg)
+    `bridge_arc_to_scope()`, `fetch_weather()`, and `build_observation_dataset()` convert the retrieval into SCOPE units, weather forcing, and sun-sensor geometry.
 
-    Sentinel-2 dates assimilated by ARC, including repeated same-day acquisitions with unique timestamps.
-
--   __Weather forcing__
+-   :material-database-cog: __3. Prepare SCOPE inputs__
 
     ---
 
-    ![Weather forcing](assets/full-run/figures/weather_forcing.svg)
+    `prepare_scope_dataset()` merges the ARC state, forcing, geometry, and upstream SCOPE resources into workflow-ready datasets.
 
-    The real ERA5 forcing curves that drive the SCOPE run.
-
--   __Observation geometry__
+-   :material-chart-line-variant: __4. Simulate outputs__
 
     ---
 
-    ![Observation geometry](assets/full-run/figures/observation_geometry.svg)
-
-    Solar and viewing geometry derived from the field centroid and acquisition schedule.
+    `run_scope_simulation()` writes the reflectance, fluorescence, and thermal datasets that feed the figures and explorer.
 
 </div>
 
-### Retrieval And Prepared Inputs
+## Step 1: ARC Retrieval
+
+The first stage answers a simple question: what canopy state should SCOPE simulate for each acquisition date? ARC uses the field boundary, the date window, and the crop prior to retrieve the core biophysical variables that drive canopy radiative transfer.
 
 <div class="grid cards" markdown>
 
--   __ARC biophysics__
+-   ![Field boundary](assets/full-run/figures/field_boundary.png)
 
-    ---
+    The field boundary confirms the exact target geometry passed into ARC.
 
-    ![ARC biophysics](assets/full-run/figures/arc_biophysics.svg)
+-   ![Acquisition timeline](assets/full-run/figures/acquisition_timeline.svg)
 
-    Seasonal posterior trajectories before the handoff to SCOPE.
-
--   __ARC peak maps__
-
-    ---
-
-    ![ARC peak maps](assets/full-run/figures/arc_peak_maps.png)
-
-    Spatial heterogeneity at the peak-LAI date.
-
--   __SCOPE input overview__
-
-    ---
-
-    ![SCOPE input overview](assets/full-run/figures/scope_input_overview.svg)
-
-    The combined handoff of crop state, forcing, and solar geometry.
+    The acquisition timeline shows the real Sentinel-2 dates assimilated by ARC.
 
 </div>
 
-### Simulated Reflectance Outputs
+<div class="grid cards" markdown>
+
+-   ![ARC biophysics](assets/full-run/figures/arc_biophysics.svg)
+
+    `LAI`, `Cab`, and `Cw` define canopy density, chlorophyll content, and water content before the forward simulation stage begins.
+
+-   ![ARC peak maps](assets/full-run/figures/arc_peak_maps.png)
+
+    The peak-date maps show the spatial heterogeneity that later propagates into the SCOPE outputs.
+
+</div>
+
+## Step 2: Weather And Observation Geometry
+
+SCOPE needs more than crop state. It also needs the atmospheric forcing and the sun-sensor geometry for each time step.
 
 <div class="grid cards" markdown>
 
--   __Reflectance time series__
+-   ![Weather forcing](assets/full-run/figures/weather_forcing.svg)
 
-    ---
+    `Rin` and `Rli` provide radiative forcing, while `Ta`, `ea`, `p`, and `u` describe the atmospheric state used during the run.
+
+-   ![Observation geometry](assets/full-run/figures/observation_geometry.svg)
+
+    Solar zenith, solar azimuth, and viewing geometry come from the field centroid and the acquisition dates, so SCOPE sees the correct illumination and observation angles.
+
+</div>
+
+## Step 3: Prepare SCOPE Inputs
+
+`prepare_scope_dataset()` turns the retrieved ARC state plus forcing and geometry into the input cubes that SCOPE actually consumes.
+
+![SCOPE input overview](assets/full-run/figures/scope_input_overview.svg)
+
+The key thing to notice here is where each family comes from:
+
+- `LAI`, `Cab`, and `Cw` are retrieved by ARC.
+- `Ta` and `Rin` come from the weather source.
+- `tts` comes from the geometry builder.
+- `fqe` is added for the fluorescence branch.
+- `Tcu`, `Tch`, `Tsu`, and `Tsh` are added for the standalone thermal branch.
+
+The saved inventories let you audit exactly what was present in the bundle:
+
+- [Open `run_config.json`](assets/full-run/run_config.json)
+- [Open `workflow_metrics.csv`](assets/full-run/workflow_metrics.csv)
+- [Open `variable_inventory.csv`](assets/full-run/variable_inventory.csv)
+- [Open `artifact_manifest.json`](assets/full-run/artifact_manifest.json)
+
+## Step 4: Simulated Outputs
+
+The published example runs three complementary SCOPE branches from the same prepared state.
+
+If the page feels static here, use the direct Plotly links below. They open the same explorer already embedded later in this page, but they jump straight to the simulated output family you care about instead of starting on reflectance by default.
+
+=== "Reflectance"
+
+    The dedicated `reflectance` branch is the clearest way to inspect band-level and spectrum-level canopy reflectance behaviour.
+
+    [Open interactive reflectance explorer](assets/full-run/explorer.html?key=reflectance%3Arsot){ .md-button .md-button--primary }
 
     ![Reflectance outputs](assets/full-run/figures/reflectance_outputs.svg)
 
-    High-signal reflectance outputs selected from the real saved dataset.
-
--   __Reflectance snapshot maps__
-
-    ---
+    The time-series figure surfaces the highest-signal reflectance variables from the saved dataset: `rsot`, `rso`, `rsos`, and `rsod`.
 
     ![Reflectance snapshot maps](assets/full-run/figures/reflectance_snapshot_maps.png)
 
-    Peak-LAI spatial response across the field after reducing the spectral dimension.
+    The snapshot maps show how the retrieved spatial structure propagates to the simulated reflectance outputs.
+
+=== "Fluorescence"
+
+    The `fluorescence` branch adds the SIF-oriented signals that were missing from the earlier docs page.
+
+    [Open interactive SIF time series](assets/full-run/explorer.html?key=fluorescence%3AF740){ .md-button .md-button--primary }
+    [Open interactive SIF spectrum](assets/full-run/explorer.html?key=fluorescence%3ALoF_){ .md-button }
+
+    ![Fluorescence outputs](assets/full-run/figures/fluorescence_outputs.svg)
+
+    This branch exposes outputs such as `LoF_`, `F685`, `F740`, and `LoutF`, which are the core SIF families used in the explorer.
+
+    ![Fluorescence snapshot maps](assets/full-run/figures/fluorescence_snapshot_maps.png)
+
+    These maps show where the strongest fluorescence response appears across the field on a representative date.
+
+=== "Thermal"
+
+    The `thermal` branch provides the thermal radiance and emissive outputs needed for temperature-oriented browsing.
+
+    [Open interactive thermal time series](assets/full-run/explorer.html?key=thermal%3ALoutt){ .md-button .md-button--primary }
+    [Open interactive thermal spectrum](assets/full-run/explorer.html?key=thermal%3ALot_){ .md-button }
+
+    ![Thermal outputs](assets/full-run/figures/thermal_outputs.svg)
+
+    This branch surfaces variables such as `Lot_`, `Loutt`, `Eoutt`, and `LotBB_`.
+
+    ![Thermal snapshot maps](assets/full-run/figures/thermal_snapshot_maps.png)
+
+    These maps show where the warm and cool response differs spatially across the field.
+
+=== "Shared comparison"
+
+    ![Workflow comparison](assets/full-run/figures/workflow_comparison.svg)
+
+    This comparison overlays the variables shared across the saved workflow outputs so you can see where the standalone branches agree or diverge.
+
+## Step 5: Interactive Exploration
+
+The explorer is the main reason this page exists. It lets you move from static figures to interactive inspection of the actual saved outputs.
+
+<div class="grid cards" markdown>
+
+-   :material-open-in-new: __Standalone explorer__
+
+    ---
+
+    [Open `explorer.html`](assets/full-run/explorer.html){ .md-button }
+
+-   :material-file-code-outline: __Browse payload__
+
+    ---
+
+    [Open `explorer_payload.json`](assets/full-run/explorer_payload.json)
 
 </div>
 
-## Why This Page Matters
+<iframe
+  src="assets/full-run/explorer.html"
+  title="ARC-SCOPE interactive explorer"
+  style="width: 100%; min-height: 1280px; border: 1px solid rgba(15, 23, 42, 0.12); border-radius: 18px; background: white;"
+></iframe>
 
-This page is the repo's most grounded demonstration because it shows a real field-season chain instead of a synthetic-only walkthrough:
+### How To Read The Explorer
 
-- ARC retrieval from Sentinel-2
-- weather and geometry aligned for the same season
-- SCOPE-ready input preparation
-- real reflectance outputs turned into figures suitable for the docs site
+1. Click a map pixel to choose the location you want to inspect.
+2. Switch variable groups to move between inputs, reflectance, SIF, and thermal outputs.
+3. Pick a date to redraw the map and choose the spectrum snapshot timestamp.
+4. For spectral variables, choose one band or wavelength to turn the cube into a time series.
+5. Use the spectrum panel to inspect the full reflectance, fluorescence, or thermal shape for the selected pixel on the selected date.
 
-If you want a lighter dependency path, use the [Core Showcase](showcase-experiment.md). If you want to build your own run from lower-level pieces, use the [Quick Start](quickstart.md).
+This means the same page can answer questions like:
+
+- how does a single reflectance band evolve through the season?
+- what does the full reflectance spectrum look like on a chosen date?
+- how do SIF and thermal signals differ at the same pixel?
+- where do the strongest spatial differences appear in the saved run?
+
+## Output Bundle
+
+The docs bundle is a browseable slice of the real run, not a hand-assembled mockup.
+
+| File | Purpose |
+| --- | --- |
+| `arc_output.npz` | ARC retrieval artifact cached from the field-year run |
+| `run_config.json` | Exact scenario metadata used to generate the bundle |
+| `workflow_metrics.csv` | High-level summary of workflow coverage |
+| `variable_inventory.csv` | Per-variable audit trail for inputs and outputs |
+| `explorer.html` / `explorer_payload.json` | Interactive browser layer |
+| `figures/*.svg` / `figures/*.png` | End-to-end figure suite for the published page |
+
+The local run also writes per-workflow NetCDF inputs and outputs. Those authoritative heavy files are intentionally omitted from the checked-in Pages bundle.
+
+## Why This Page Uses The Validated Full Run
+
+The repository now also exposes a coupled `energy-balance` path. I did not switch the published page to that branch here because the coupled solve is materially slower to regenerate. The current checked-in bundle already satisfies the actual showcase need:
+
+- one real location and year
+- real ARC retrieval
+- real SCOPE-ready inputs
+- real reflectance, SIF, and thermal outputs
+- figure-rich explanation
+- interactive exploration of time series, spectra, and maps
+
+That is the most reliable contract for the docs site today.

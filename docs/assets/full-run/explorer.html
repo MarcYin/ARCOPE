@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ARC-SCOPE Explorer</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --border: #d7dde8;
+      --panel: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --bg: #f8fafc;
+      --accent: #0f766e;
+    }
+    body {
+      margin: 0;
+      padding: 1rem;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .shell {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      gap: 1rem;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1rem 1.1rem;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      align-items: end;
+    }
+    label {
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+    select, input[type="checkbox"] {
+      font: inherit;
+    }
+    select {
+      width: 100%;
+      padding: 0.55rem 0.7rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+    }
+    .summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .summary strong {
+      color: var(--text);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 1rem;
+    }
+    .plots {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+    .plot {
+      min-height: 360px;
+    }
+    .note {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    @media (max-width: 980px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="panel">
+      <h1 style="margin-top:0">ARC-SCOPE Interactive Explorer</h1>
+      <p class="note">Browse the saved full-run outputs by clicking a map pixel, selecting a date, and switching between reflectance, SIF, thermal, and input variables.</p>
+      <div class="controls">
+        <label>Output family
+          <select id="groupSelect"></select>
+        </label>
+        <label>Variable
+          <select id="variableSelect"></select>
+        </label>
+        <label>Date
+          <select id="dateSelect"></select>
+        </label>
+        <label>Band / wavelength
+          <select id="bandSelect"></select>
+        </label>
+        <label style="display:flex;align-items:center;gap:0.55rem;padding-top:1.65rem">
+          <input id="dailyToggle" type="checkbox">
+          Interpolate time series to daily cadence
+        </label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="summary" id="summary"></div>
+    </section>
+
+    <div class="grid">
+      <section class="panel">
+        <div id="mapPlot" class="plot"></div>
+      </section>
+      <section class="plots">
+        <section class="panel"><div id="timePlot" class="plot"></div></section>
+        <section class="panel"><div id="spectrumPlot" class="plot"></div></section>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      payload: null,
+      group: null,
+      key: null,
+      yIndex: 0,
+      xIndex: 0,
+    };
+
+    const groupSelect = document.getElementById("groupSelect");
+    const variableSelect = document.getElementById("variableSelect");
+    const dateSelect = document.getElementById("dateSelect");
+    const bandSelect = document.getElementById("bandSelect");
+    const dailyToggle = document.getElementById("dailyToggle");
+    const summary = document.getElementById("summary");
+
+    function entriesForGroup(group) {
+      return Object.values(state.payload.variables).filter((entry) => entry.group === group);
+    }
+
+    function currentEntry() {
+      return state.payload.variables[state.key];
+    }
+
+    function currentDateIndex(entry) {
+      return Math.min(dateSelect.selectedIndex >= 0 ? dateSelect.selectedIndex : 0, entry.coords.time.length - 1);
+    }
+
+    function currentBandIndex(entry) {
+      if (!entry.axis_name) return 0;
+      return Math.min(bandSelect.selectedIndex >= 0 ? bandSelect.selectedIndex : 0, entry.coords[entry.axis_name].length - 1);
+    }
+
+    function numericDateSeries(timeStrings) {
+      return timeStrings.map((value) => new Date(value + "T00:00:00Z").getTime());
+    }
+
+    function interpolateDaily(xs, ys) {
+      if (xs.length < 2) return { xs, ys };
+      const day = 24 * 3600 * 1000;
+      const xDaily = [];
+      const yDaily = [];
+      let cursor = xs[0];
+      let seg = 0;
+      while (cursor <= xs[xs.length - 1]) {
+        while (seg < xs.length - 2 && cursor > xs[seg + 1]) seg += 1;
+        const x0 = xs[seg];
+        const x1 = xs[Math.min(seg + 1, xs.length - 1)];
+        const y0 = ys[seg];
+        const y1 = ys[Math.min(seg + 1, ys.length - 1)];
+        const frac = x1 === x0 ? 0 : (cursor - x0) / (x1 - x0);
+        xDaily.push(cursor);
+        yDaily.push(y0 + frac * (y1 - y0));
+        cursor += day;
+      }
+      return { xs: xDaily, ys: yDaily };
+    }
+
+    function updateGroupSelect() {
+      const groups = Array.from(new Set(Object.values(state.payload.variables).map((entry) => entry.group)));
+      groupSelect.innerHTML = groups.map((group) => `<option value="${group}">${group}</option>`).join("");
+      const defaultEntry = state.payload.variables[state.payload.default_key];
+      state.group = defaultEntry ? defaultEntry.group : groups[0];
+      groupSelect.value = state.group;
+    }
+
+    function updateVariableSelect() {
+      const entries = entriesForGroup(state.group);
+      variableSelect.innerHTML = entries
+        .map((entry) => `<option value="${entry.key}">${entry.label}</option>`)
+        .join("");
+      const preferred = entries.find((entry) => entry.key === state.key) || entries[0];
+      state.key = preferred.key;
+      variableSelect.value = state.key;
+    }
+
+    function updateDateAndBandSelects() {
+      const entry = currentEntry();
+      dateSelect.innerHTML = entry.coords.time.map((value) => `<option value="${value}">${value}</option>`).join("");
+      if (entry.axis_name) {
+        bandSelect.disabled = false;
+        bandSelect.innerHTML = entry.coords[entry.axis_name]
+          .map((value) => `<option value="${value}">${value}</option>`)
+          .join("");
+      } else {
+        bandSelect.disabled = true;
+        bandSelect.innerHTML = `<option>No spectral axis</option>`;
+      }
+    }
+
+    function valueAt(entry, yIndex, xIndex, timeIndex, bandIndex) {
+      const pixel = entry.data[yIndex][xIndex];
+      if (entry.axis_name) return pixel[timeIndex][bandIndex];
+      return pixel[timeIndex];
+    }
+
+    function seriesAt(entry, yIndex, xIndex, bandIndex) {
+      const pixel = entry.data[yIndex][xIndex];
+      if (entry.axis_name) return pixel.map((row) => row[bandIndex]);
+      return pixel.slice();
+    }
+
+    function spectrumAt(entry, yIndex, xIndex, timeIndex) {
+      if (!entry.axis_name) return null;
+      return entry.data[yIndex][xIndex][timeIndex];
+    }
+
+    function mapValues(entry, timeIndex, bandIndex) {
+      return entry.data.map((row) =>
+        row.map((cell) => (entry.axis_name ? cell[timeIndex][bandIndex] : cell[timeIndex]))
+      );
+    }
+
+    function updateSummary(entry) {
+      const dateValue = entry.coords.time[currentDateIndex(entry)];
+      const bandValue = entry.axis_name ? entry.coords[entry.axis_name][currentBandIndex(entry)] : "n/a";
+      summary.innerHTML = `
+        <span><strong>Variable</strong>: ${entry.label}</span>
+        <span><strong>Workflow</strong>: ${entry.workflow}</span>
+        <span><strong>Selected pixel</strong>: y=${state.yIndex}, x=${state.xIndex}</span>
+        <span><strong>Date</strong>: ${dateValue}</span>
+        <span><strong>Band</strong>: ${bandValue}</span>
+      `;
+    }
+
+    function renderPlots() {
+      const entry = currentEntry();
+      const timeIndex = currentDateIndex(entry);
+      const bandIndex = currentBandIndex(entry);
+      state.yIndex = Math.min(state.yIndex, entry.coords.y.length - 1);
+      state.xIndex = Math.min(state.xIndex, entry.coords.x.length - 1);
+      updateSummary(entry);
+
+      Plotly.newPlot("mapPlot", [{
+        z: mapValues(entry, timeIndex, bandIndex),
+        x: entry.coords.x,
+        y: entry.coords.y,
+        type: "heatmap",
+        colorscale: "Viridis",
+        hovertemplate: "x=%{x}<br>y=%{y}<br>value=%{z:.4f}<extra></extra>",
+      }], {
+        title: "Spatial map for the selected date and band",
+        margin: { t: 50, l: 55, r: 20, b: 45 },
+        xaxis: { title: "x" },
+        yaxis: { title: "y", autorange: "reversed" },
+      }, { responsive: true });
+
+      const xs = numericDateSeries(entry.coords.time);
+      let series = seriesAt(entry, state.yIndex, state.xIndex, bandIndex);
+      let xSeries = xs.slice();
+      if (dailyToggle.checked) {
+        const interpolated = interpolateDaily(xs, series);
+        xSeries = interpolated.xs;
+        series = interpolated.ys;
+      }
+      Plotly.newPlot("timePlot", [{
+        x: xSeries,
+        y: series,
+        mode: "lines+markers",
+        line: { color: "#0f766e", width: 2 },
+        marker: { size: 5 },
+        hovertemplate: "%{x|%Y-%m-%d}<br>value=%{y:.4f}<extra></extra>",
+      }], {
+        title: "Pixel time series",
+        margin: { t: 50, l: 55, r: 20, b: 45 },
+        xaxis: { type: "date" },
+        yaxis: { title: entry.label },
+      }, { responsive: true });
+
+      const spectrum = spectrumAt(entry, state.yIndex, state.xIndex, timeIndex);
+      if (spectrum) {
+        Plotly.newPlot("spectrumPlot", [{
+          x: entry.coords[entry.axis_name],
+          y: spectrum,
+          mode: "lines",
+          line: { color: "#1d4ed8", width: 2 },
+          hovertemplate: `${entry.axis_name}=%{x}<br>value=%{y:.4f}<extra></extra>`,
+        }], {
+          title: "Pixel spectrum on the selected date",
+          margin: { t: 50, l: 55, r: 20, b: 45 },
+          xaxis: { title: entry.axis_name },
+          yaxis: { title: entry.label },
+        }, { responsive: true });
+      } else {
+        Plotly.newPlot("spectrumPlot", [], {
+          title: "No spectral axis for this variable",
+          annotations: [{
+            text: "Choose a spectral variable such as rsot, LoF_, or Lot_ to inspect a full spectrum.",
+            showarrow: false,
+            x: 0.5,
+            y: 0.5,
+            xref: "paper",
+            yref: "paper",
+          }],
+          margin: { t: 50, l: 20, r: 20, b: 20 },
+          xaxis: { visible: false },
+          yaxis: { visible: false },
+        }, { responsive: true });
+      }
+
+      const mapNode = document.getElementById("mapPlot");
+      mapNode.removeAllListeners?.("plotly_click");
+      mapNode.on("plotly_click", (event) => {
+        const point = event.points?.[0];
+        if (!point || !point.pointIndex) return;
+        state.yIndex = point.pointIndex[0];
+        state.xIndex = point.pointIndex[1];
+        renderPlots();
+      });
+    }
+
+    async function bootstrap() {
+      const response = await fetch("explorer_payload.json");
+      state.payload = await response.json();
+      const params = new URLSearchParams(window.location.search);
+      const requestedKey = params.get("key");
+      const requestedGroup = params.get("group");
+      updateGroupSelect();
+      if (requestedKey && state.payload.variables[requestedKey]) {
+        state.group = state.payload.variables[requestedKey].group;
+        groupSelect.value = state.group;
+        state.key = requestedKey;
+      } else if (requestedGroup && entriesForGroup(requestedGroup).length > 0) {
+        state.group = requestedGroup;
+        groupSelect.value = state.group;
+        state.key = entriesForGroup(state.group)[0].key;
+      } else {
+        state.key = state.payload.default_key;
+      }
+      updateVariableSelect();
+      updateDateAndBandSelects();
+      if (requestedKey && state.payload.variables[requestedKey]) {
+        variableSelect.value = requestedKey;
+      }
+      renderPlots();
+    }
+
+    groupSelect.addEventListener("change", () => {
+      state.group = groupSelect.value;
+      updateVariableSelect();
+      updateDateAndBandSelects();
+      renderPlots();
+    });
+    variableSelect.addEventListener("change", () => {
+      state.key = variableSelect.value;
+      updateDateAndBandSelects();
+      renderPlots();
+    });
+    dateSelect.addEventListener("change", renderPlots);
+    bandSelect.addEventListener("change", renderPlots);
+    dailyToggle.addEventListener("change", renderPlots);
+    bootstrap().catch((error) => {
+      document.body.innerHTML = `<pre style="white-space:pre-wrap;color:#991b1b">Failed to load explorer payload: ${error}</pre>`;
+    });
+  </script>
+</body>
+</html>

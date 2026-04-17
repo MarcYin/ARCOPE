@@ -14,7 +14,10 @@ Bridge ARC crop-state retrieval with SCOPE canopy radiative-transfer simulation 
 [Installation](installation.md){ .md-button }
 
 !!! success "What is real here"
-    The primary showcase path is a real ARC retrieval for the bundled Belgium field in 2021, paired with real ERA5 forcing, real observation geometry, and a validated SCOPE `reflectance` run.
+    The primary showcase path is a real ARC retrieval for the bundled Belgium field in 2021, paired with real forcing, real observation geometry, saved SCOPE outputs, and an interactive explorer generated from the run artifacts.
+
+!!! info "What is checked into the site"
+    The GitHub Pages bundle is a compact interactive slice of that real run: the explorer payload is downsampled for responsiveness, while the figure suite and CSV inventories still come from the saved experiment outputs.
 
 !!! info "What is lightweight"
     The core showcase keeps a dependency-light path for users who want to understand the bridge, weather alignment, radiation partitioning, and optimization mechanics without installing ARC or SCOPE.
@@ -25,7 +28,7 @@ Bridge ARC crop-state retrieval with SCOPE canopy radiative-transfer simulation 
 
     ---
 
-    Run the full ARC-to-SCOPE pipeline with real retrieval, forcing, geometry, and simulated reflectance outputs.
+    Walk from real retrieval to simulation, then inspect pixel/date/band/spectrum behaviour in the interactive explorer across reflectance, SIF, and thermal outputs.
 
     [:octicons-arrow-right-24: Open the full example](full-run-example.md)
 
@@ -67,7 +70,7 @@ Bridge ARC crop-state retrieval with SCOPE canopy radiative-transfer simulation 
 
     ---
 
-    SCOPE turns the retrieved crop state into reflectance-oriented outputs that can be inspected as seasonal trajectories and spatial maps.
+    SCOPE turns the retrieved crop state into reflectance, SIF, and thermal-oriented outputs that can be inspected as seasonal trajectories, spectra, and spatial maps.
 
 </div>
 
@@ -78,19 +81,15 @@ Bridge ARC crop-state retrieval with SCOPE canopy radiative-transfer simulation 
     Use this when you want the full validated story:
 
     - real ARC retrieval
-    - real ERA5 weather
-    - real SCOPE reflectance simulation
+    - real forcing and observation geometry
+    - saved SCOPE outputs plus interactive explorer
     - figure-rich docs assets and report metadata
 
     ```bash
     pixi install
     pixi run fetch-scope-upstream
     pixi run check-runtime
-    python3 -m arc_scope.experiments.dual_workflow \
-      --scope-root-path ./upstream/SCOPE \
-      --workflow reflectance \
-      --dtype float32 \
-      --output-dir ./full-run-output
+    pixi run real-experiment-docs
     ```
 
 === "Core-only"
@@ -111,7 +110,7 @@ Bridge ARC crop-state retrieval with SCOPE canopy radiative-transfer simulation 
 
 | Surface | What it shows | Best page |
 | --- | --- | --- |
-| Real full run | End-to-end ARC retrieval, weather, geometry, SCOPE reflectance, and report figures | [Real Full Run](full-run-example.md) |
+| Real full run | End-to-end ARC retrieval, weather, geometry, saved SCOPE outputs, and interactive explorer | [Real Full Run](full-run-example.md) |
 | Core showcase | Dependency-light walkthrough of the bridge and optimization surfaces | [Core Showcase](showcase-experiment.md) |
 | Step-by-step usage | Lower-level bridge and pipeline usage patterns | [Quick Start](quickstart.md) |
 | Runtime setup | Installation routes for ARC, SCOPE, GDAL, and ERA5 access | [Installation](installation.md) |
@@ -124,13 +123,13 @@ Bridge ARC crop-state retrieval with SCOPE canopy radiative-transfer simulation 
 
     ---
 
-    Belgium/Flanders test field, wheat crop type, 2021 growing season, ERA5 forcing, SCOPE `reflectance`.
+    Belgium/Flanders test field, wheat crop type, 2021 growing season, real ARC retrieval, then `reflectance`, `fluorescence`, and `thermal` outputs with an explorer generated from the run bundle.
 
 -   __Checked-in docs bundle__
 
     ---
 
-    The docs ship the generated figure set and lightweight metadata from the real run, so GitHub Pages stays small and fast.
+    The docs ship the generated figure set and a compact explorer payload from the real run, so GitHub Pages stays small and fast without pretending the browser layer is the full-resolution artifact.
 
 -   __Material site features__
 

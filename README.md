@@ -95,10 +95,20 @@ Run the real end-to-end example from the bundled Belgium test field in 2021:
 ```bash
 pip install "arc-scope[all]"
 scope fetch-upstream --dest ./upstream/SCOPE
-python3 -m arc_scope.experiments.dual_workflow --scope-root-path ./upstream/SCOPE --workflow reflectance --dtype float32 --output-dir ./full-run-output
+python3 -m arc_scope.experiments.dual_workflow \
+  --start-date 2021-05-25 \
+  --end-date 2021-08-05 \
+  --weather-provider local \
+  --weather-file ./src/arc_scope/data/showcase_weather.csv \
+  --scope-root-path ./upstream/SCOPE \
+  --workflow reflectance \
+  --workflow fluorescence \
+  --workflow thermal \
+  --dtype float32 \
+  --output-dir ./full-run-output
 ```
 
-This run performs one real ARC retrieval, prepares SCOPE inputs from live weather and observation geometry, runs the validated `reflectance` workflow, and writes a markdown report plus an extensive figure suite.
+This run performs one real ARC retrieval, prepares SCOPE inputs from weather and observation geometry, runs the validated `reflectance`, `fluorescence`, and `thermal` workflows, and writes a markdown report plus an extensive figure suite and browser explorer.
 
 See [docs/full-run-example.md](docs/full-run-example.md) for the artifact bundle and figure inventory.
 

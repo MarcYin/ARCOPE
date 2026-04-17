@@ -101,6 +101,8 @@ config.resolved_scope_options
 # {'calc_fluor': 1, 'calc_planck': 0}
 ```
 
+`scope_workflow="energy-balance"` is special: ARC-SCOPE still uses the common prepared input dataset, but `run_scope_simulation()` now routes that workflow to the explicit coupled `scope-rtm` energy-balance runners instead of the generic `run_scope_dataset()` flag path.
+
 ## `ArcScopePipeline`
 
 ```python
@@ -194,6 +196,10 @@ Merge all inputs into a runner-ready SCOPE dataset. Requires `scope-rtm`.
 ### `run_scope_simulation(scope_dataset, config)`
 
 Execute the SCOPE simulation. Requires `scope-rtm` and `torch`.
+
+- `reflectance`, `fluorescence`, and `thermal` use the standard `run_scope_dataset()` dispatch.
+- `thermal` remains the prescribed-temperature thermal radiance workflow.
+- `energy-balance` now runs the coupled fluorescence and coupled thermal energy-balance branches explicitly and merges their outputs into one dataset.
 
 ## `ArcResult`
 

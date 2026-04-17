@@ -14,8 +14,8 @@
     "osgeo": "available",
     "scope": "available",
     "torch": "available",
-    "cdsapi": "available",
+    "cdsapi": "not-required",
     "scope_root": "available"
   },
-  "scope_root": "upstream/SCOPE"
+  "scope_root": "/Users/fengyin/Documents/ARC-SCOPE/upstream/SCOPE"
 }

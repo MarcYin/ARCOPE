@@ -10,21 +10,34 @@
       51.279038
     ]
   },
-  "start_date": "2021-05-15",
-  "end_date": "2021-10-01",
+  "start_date": "2021-05-25",
+  "end_date": "2021-08-05",
   "crop_type": "wheat",
   "start_of_season": 170,
   "year": 2021,
   "num_samples": 100000,
-  "growth_season_length": 60,
+  "growth_season_length": 45,
   "data_source": "aws",
-  "weather_provider": "era5",
-  "weather_config": {},
+  "weather_provider": "local",
+  "weather_config": {
+    "file_path": "/Users/fengyin/Documents/ARC-SCOPE/src/arc_scope/data/showcase_weather.csv",
+    "var_map": {
+      "sw_down_wm2": "Rin",
+      "lw_down_wm2": "Rli",
+      "air_temp_c": "Ta",
+      "vapour_pressure_hpa": "ea",
+      "pressure_hpa": "p",
+      "wind_speed_ms": "u"
+    },
+    "time_column": "time"
+  },
   "workflows": [
-    "reflectance"
+    "reflectance",
+    "fluorescence",
+    "thermal"
   ],
-  "scope_root_path": "upstream/SCOPE",
+  "scope_root_path": "/Users/fengyin/Documents/ARC-SCOPE/upstream/SCOPE",
   "device": "cpu",
-  "dtype": "float64",
+  "dtype": "float32",
   "python": "3.11.15"
 }

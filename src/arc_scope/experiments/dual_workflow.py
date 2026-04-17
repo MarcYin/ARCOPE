@@ -10,9 +10,9 @@ This module powers the repo's heavyweight, real-dependency example:
 6. emit a docs-grade artifact bundle with figures and a markdown report
 
 The default target uses the bundled Belgium test field for calendar year 2021
-and documents the real ARC-to-SCOPE reflectance run. The module path keeps the
-historical ``dual_workflow`` name for compatibility with earlier docs and
-scripts.
+and emits a real ARC-to-SCOPE artifact bundle covering reflectance, SIF, and
+thermal output families. The module path keeps the historical
+``dual_workflow`` name for compatibility with earlier docs and scripts.
 """
 
 from __future__ import annotations
@@ -51,11 +51,12 @@ from arc_scope.utils.types import PathLike
 
 DEFAULT_START_DATE = "2021-05-15"
 DEFAULT_END_DATE = "2021-10-01"
-DEFAULT_WORKFLOWS = ("reflectance",)
+DEFAULT_WORKFLOWS = ("reflectance", "fluorescence", "thermal")
 DEFAULT_CROP_TYPE = "wheat"
 DEFAULT_START_OF_SEASON = 170
 DEFAULT_GROWTH_SEASON_LENGTH = 60
 DEFAULT_NUM_SAMPLES = 100000
+DEFAULT_DOCS_SUBSET_SIZE = 8
 DEFAULT_LOCAL_VAR_MAP = {
     "sw_down_wm2": "Rin",
     "lw_down_wm2": "Rli",
@@ -63,6 +64,12 @@ DEFAULT_LOCAL_VAR_MAP = {
     "vapour_pressure_hpa": "ea",
     "pressure_hpa": "p",
     "wind_speed_ms": "u",
+}
+WORKFLOW_PRIORITY_NAMES = {
+    "reflectance": ("rsot", "rso", "rsos", "rsod"),
+    "fluorescence": ("LoF_", "F685", "F740", "LoutF", "EoutF"),
+    "thermal": ("Lot_", "Loutt", "Eoutt", "LotBB_", "Emint_"),
+    "energy-balance": ("LoF_", "F685", "F740", "Lot_", "Loutt", "Eoutt", "LE", "H"),
 }
 WORKFLOW_PRIORITY_PATTERNS = {
     "reflectance": (
@@ -76,15 +83,24 @@ WORKFLOW_PRIORITY_PATTERNS = {
         "reflect",
     ),
     "fluorescence": (
+        "lof",
+        "loutf",
+        "eoutf",
         "sif",
         "f685",
         "f740",
+        "f761",
         "fluor",
         "fs",
         "qf",
         "apar",
     ),
     "thermal": (
+        "lot",
+        "loutt",
+        "eoutt",
+        "emint",
+        "lotbb",
         "lst",
         "ltt",
         "trad",
@@ -97,6 +113,34 @@ WORKFLOW_PRIORITY_PATTERNS = {
         "le",
         "thermal",
     ),
+    "energy-balance": (
+        "lof",
+        "f685",
+        "f740",
+        "lot",
+        "loutt",
+        "eoutt",
+        "rn",
+        "le",
+        "h",
+        "tcu",
+        "tch",
+        "tsu",
+        "tsh",
+        "fluor",
+        "thermal",
+    ),
+}
+EXPLORER_MAX_SPATIAL = 8
+EXPLORER_MAX_SPECTRAL = 81
+EXPLORER_VARIABLES = {
+    "shared": ("LAI", "Cab", "Cw"),
+    "fluorescence-input": ("fqe",),
+    "thermal-input": ("Tcu", "Tch", "Tsu", "Tsh"),
+    "reflectance": ("rsot", "rso"),
+    "fluorescence": ("LoF_", "F685", "F740", "LoutF", "EoutF"),
+    "thermal": ("Lot_", "Loutt", "Eoutt"),
+    "energy-balance": ("LoF_", "F685", "F740", "Lot_", "Loutt", "Eoutt", "LE", "H", "Rn", "Tcu", "Tsu"),
 }
 
 
@@ -154,6 +198,7 @@ def run_dual_workflow_experiment(
     scope_root_path: PathLike | None = None,
     device: str = "cpu",
     dtype: str = "float64",
+    simulation_subset_size: int | None = None,
 ) -> DualWorkflowExperimentResult:
     """Run the real ARC-SCOPE experiment from one shared retrieval."""
     output_path = Path(output_dir)
@@ -203,6 +248,11 @@ def run_dual_workflow_experiment(
 
     arc_result = retrieve_arc(base_config)
     post_bio_da, post_bio_scale_da = bridge_arc_to_scope(arc_result, year=year)
+    simulation_subset = _resolve_simulation_subset(
+        post_bio_da=post_bio_da,
+        subset_size=simulation_subset_size,
+    )
+    config_summary["simulation_subset"] = simulation_subset
     weather_ds = fetch_weather(base_config)
     observation_ds = build_observation_dataset(
         doys=arc_result.doys,
@@ -227,6 +277,7 @@ def run_dual_workflow_experiment(
             observation_ds=observation_ds,
             config=workflow_config,
         )
+        scope_input_ds = _subset_scope_dataset(scope_input_ds, simulation_subset)
         scope_output_ds = run_scope_simulation(scope_input_ds, workflow_config)
         selected_output_vars = select_workflow_variables(scope_output_ds, workflow)
         workflow_runs[workflow] = WorkflowRun(
@@ -289,6 +340,8 @@ def write_dual_workflow_artifacts(
         "variable_inventory": output_path / "variable_inventory.csv",
         "manifest": output_path / "artifact_manifest.json",
         "report": output_path / "index.md",
+        "explorer_payload": output_path / "explorer_payload.json",
+        "explorer": output_path / "explorer.html",
         "field_boundary": figure_dir / "field_boundary.png",
         "acquisition_timeline": figure_dir / "acquisition_timeline.svg",
         "weather_forcing": figure_dir / "weather_forcing.svg",
@@ -359,6 +412,16 @@ def write_dual_workflow_artifacts(
     if len(result.workflow_runs) > 1:
         files["workflow_comparison"] = figure_dir / "workflow_comparison.svg"
         _plot_workflow_comparison(result.workflow_runs, files["workflow_comparison"])
+
+    explorer_payload = _build_explorer_payload(result)
+    files["explorer_payload"].write_text(
+        json.dumps(explorer_payload, allow_nan=False),
+        encoding="utf-8",
+    )
+    files["explorer"].write_text(
+        _render_explorer_html(payload_name=files["explorer_payload"].name),
+        encoding="utf-8",
+    )
 
     for key, path in files.items():
         manifest[key] = str(path.relative_to(Path(output_dir)))
@@ -435,6 +498,12 @@ def select_workflow_variables(ds: xr.Dataset, workflow: str, limit: int = 4) -> 
         if _is_numeric(ds[name]) and "time" in ds[name].dims
     ]
     selected: list[str] = []
+    for name in WORKFLOW_PRIORITY_NAMES.get(workflow, ()):
+        if name in candidates and name not in selected:
+            selected.append(name)
+        if len(selected) >= limit:
+            return selected
+
     for pattern in WORKFLOW_PRIORITY_PATTERNS.get(workflow, ()):
         for name in candidates:
             if name in selected:
@@ -466,10 +535,19 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         dest="workflows",
         action="append",
         default=[],
-        help="Workflow to run. Repeat for multiple values. Default: reflectance.",
+        help="Workflow to run. Repeat for multiple values. Default: reflectance, fluorescence, thermal.",
     )
     parser.add_argument("--output-dir", type=Path, default=Path("./full-run-output"))
     parser.add_argument("--num-samples", type=int, default=DEFAULT_NUM_SAMPLES)
+    parser.add_argument(
+        "--simulation-subset-size",
+        type=int,
+        default=None,
+        help=(
+            "Optional y/x window size for the SCOPE simulation domain. "
+            "ARC retrieval still uses the full field."
+        ),
+    )
     parser.add_argument(
         "--growth-season-length",
         type=int,
@@ -532,6 +610,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         scope_root_path=args.scope_root_path,
         device=args.device,
         dtype=args.dtype,
+        simulation_subset_size=args.simulation_subset_size,
     )
     files = write_dual_workflow_artifacts(result, args.output_dir)
 
@@ -542,6 +621,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     print(f"Year:         {args.year}")
     print(f"Date window:  {args.start_date} -> {args.end_date}")
     print(f"Workflows:    {', '.join(workflows)}")
+    subset = result.config.get("simulation_subset", {})
+    if subset.get("applied"):
+        print(
+            "Simulation:  "
+            f"cropped to {subset['size_y']}x{subset['size_x']} "
+            f"(y={subset['y_start']}:{subset['y_stop']}, "
+            f"x={subset['x_start']}:{subset['x_stop']})"
+        )
     print(f"Scope root:   {result.runtime.scope_root}")
     print()
     print("Artifacts written:")
@@ -623,6 +710,61 @@ def _build_run_config_summary(
         "dtype": base_config.dtype,
         "python": sys.version.split()[0],
     }
+
+
+def _resolve_simulation_subset(
+    *,
+    post_bio_da: xr.DataArray,
+    subset_size: int | None,
+) -> dict[str, Any]:
+    """Choose a compact y/x window for the SCOPE stage while keeping ARC full-field."""
+    if subset_size is None:
+        return {"requested_size": None, "applied": False}
+    if subset_size <= 0:
+        raise ValueError("simulation_subset_size must be positive when provided.")
+
+    reference = post_bio_da.sel(band="lai") if "band" in post_bio_da.dims else post_bio_da
+    valid_mask = np.isfinite(reference).any(dim="time").values
+    n_y, n_x = valid_mask.shape
+    size_y = min(int(subset_size), n_y)
+    size_x = min(int(subset_size), n_x)
+
+    best_count = -1
+    best_window = (0, 0)
+    for y_start in range(n_y - size_y + 1):
+        for x_start in range(n_x - size_x + 1):
+            count = int(valid_mask[y_start:y_start + size_y, x_start:x_start + size_x].sum())
+            if count > best_count:
+                best_count = count
+                best_window = (y_start, x_start)
+
+    y_start, x_start = best_window
+    y_stop = y_start + size_y
+    x_stop = x_start + size_x
+    applied = size_y < n_y or size_x < n_x
+    return {
+        "requested_size": int(subset_size),
+        "applied": applied,
+        "size_y": size_y,
+        "size_x": size_x,
+        "y_start": y_start,
+        "y_stop": y_stop,
+        "x_start": x_start,
+        "x_stop": x_stop,
+        "valid_pixels_in_window": best_count,
+        "total_pixels_in_window": int(size_y * size_x),
+        "full_field_shape": [int(n_y), int(n_x)],
+    }
+
+
+def _subset_scope_dataset(ds: xr.Dataset, subset: Mapping[str, Any]) -> xr.Dataset:
+    """Apply a shared y/x slice to the prepared SCOPE dataset when requested."""
+    if not subset.get("applied"):
+        return ds
+    return ds.isel(
+        y=slice(int(subset["y_start"]), int(subset["y_stop"])),
+        x=slice(int(subset["x_start"]), int(subset["x_stop"])),
+    )
 
 
 def _build_acquisition_table(
@@ -977,11 +1119,589 @@ def _plot_workflow_comparison(workflow_runs: Mapping[str, WorkflowRun], path: Pa
     plt.close(fig)
 
 
+def _build_explorer_payload(result: DualWorkflowExperimentResult) -> dict[str, Any]:
+    """Create a lightweight interactive payload derived from the saved run."""
+    variables: dict[str, dict[str, Any]] = {}
+    first_workflow = result.workflow_runs[next(iter(result.workflow_runs))]
+
+    for name in EXPLORER_VARIABLES["shared"]:
+        if name in first_workflow.scope_input_ds:
+            entry = _serialise_explorer_variable(
+                first_workflow.scope_input_ds[name],
+                key=f"input:{name}",
+                label=f"Input · {name}",
+                group="Inputs",
+                workflow="shared",
+            )
+            if entry is not None:
+                variables[entry["key"]] = entry
+
+    if "fluorescence" in result.workflow_runs:
+        fluorescence_input = result.workflow_runs["fluorescence"].scope_input_ds
+        for name in EXPLORER_VARIABLES["fluorescence-input"]:
+            if name in fluorescence_input:
+                entry = _serialise_explorer_variable(
+                    fluorescence_input[name],
+                    key=f"fluorescence-input:{name}",
+                    label=f"Fluorescence input · {name}",
+                    group="SIF Inputs",
+                    workflow="fluorescence",
+                )
+                if entry is not None:
+                    variables[entry["key"]] = entry
+
+    if "energy-balance" in result.workflow_runs:
+        energy_balance_input = result.workflow_runs["energy-balance"].scope_input_ds
+        for name in ("fqe", "Vcmax25", "BallBerrySlope", "h", "rss"):
+            if name in energy_balance_input:
+                entry = _serialise_explorer_variable(
+                    energy_balance_input[name],
+                    key=f"energy-balance-input:{name}",
+                    label=f"Energy Balance Input · {name}",
+                    group="Energy Balance Inputs",
+                    workflow="energy-balance",
+                )
+                if entry is not None:
+                    variables[entry["key"]] = entry
+
+    if "thermal" in result.workflow_runs:
+        thermal_input = result.workflow_runs["thermal"].scope_input_ds
+        for name in EXPLORER_VARIABLES["thermal-input"]:
+            if name in thermal_input:
+                entry = _serialise_explorer_variable(
+                    thermal_input[name],
+                    key=f"thermal-input:{name}",
+                    label=f"Thermal input · {name}",
+                    group="Thermal Inputs",
+                    workflow="thermal",
+                )
+                if entry is not None:
+                    variables[entry["key"]] = entry
+
+    for workflow, workflow_run in result.workflow_runs.items():
+        for name in EXPLORER_VARIABLES.get(workflow, ()):
+            if name not in workflow_run.scope_output_ds:
+                continue
+            entry = _serialise_explorer_variable(
+                workflow_run.scope_output_ds[name],
+                key=f"{workflow}:{name}",
+                label=f"{_workflow_label(workflow)} · {name}",
+                group=f"{_workflow_label(workflow)} Outputs",
+                workflow=workflow,
+            )
+            if entry is not None:
+                variables[entry["key"]] = entry
+
+    default_key = next(
+        (
+            key for key in (
+                "reflectance:rsot",
+                "reflectance:rso",
+                "energy-balance:LoF_",
+                "energy-balance:Lot_",
+                "fluorescence:LoF_",
+                "thermal:Lot_",
+            )
+            if key in variables
+        ),
+        next(iter(variables), ""),
+    )
+    return {
+        "meta": {
+            "title": "ARC-SCOPE Interactive Explorer",
+            "location": result.config["location"],
+            "date_window": {
+                "start": result.config["start_date"],
+                "end": result.config["end_date"],
+            },
+            "workflows": list(result.workflow_runs),
+            "notes": [
+                "The explorer is derived from the saved experiment outputs.",
+                "For responsiveness, spatial and spectral axes are downsampled from the authoritative NetCDF artifacts.",
+                "Time series can be interpolated to daily cadence in the browser for exploration only.",
+            ],
+        },
+        "default_key": default_key,
+        "variables": variables,
+    }
+
+
+def _serialise_explorer_variable(
+    data_array: xr.DataArray,
+    *,
+    key: str,
+    label: str,
+    group: str,
+    workflow: str,
+) -> dict[str, Any] | None:
+    """Downsample and serialise a y/x/time variable for browser-side exploration."""
+    if not {"time", "y", "x"}.issubset(data_array.dims):
+        return None
+
+    spectral_dims = [dim for dim in data_array.dims if dim not in {"time", "y", "x"}]
+    reduced = data_array
+    axis_name: str | None = None
+    for dim in spectral_dims[1:]:
+        reduced = reduced.mean(dim=dim, skipna=True)
+    if spectral_dims:
+        axis_name = spectral_dims[0]
+
+    y_indices = _thin_indices(reduced.sizes["y"], EXPLORER_MAX_SPATIAL)
+    x_indices = _thin_indices(reduced.sizes["x"], EXPLORER_MAX_SPATIAL)
+    reduced = reduced.isel(y=y_indices, x=x_indices)
+
+    coords: dict[str, list[Any]] = {
+        "time": pd.to_datetime(reduced.coords["time"].values).strftime("%Y-%m-%d").tolist(),
+        "y": np.round(np.asarray(reduced.coords["y"].values, dtype=np.float64), 3).tolist(),
+        "x": np.round(np.asarray(reduced.coords["x"].values, dtype=np.float64), 3).tolist(),
+    }
+    ordered_dims = ["y", "x", "time"]
+    if axis_name is not None:
+        spectral_indices = _thin_indices(reduced.sizes[axis_name], EXPLORER_MAX_SPECTRAL)
+        reduced = reduced.isel({axis_name: spectral_indices})
+        coords[axis_name] = np.round(
+            np.asarray(reduced.coords[axis_name].values, dtype=np.float64),
+            3,
+        ).tolist()
+        ordered_dims.append(axis_name)
+
+    reduced = reduced.transpose(*ordered_dims)
+    values = np.asarray(reduced.values, dtype=np.float32)
+    rounded = np.round(values, 6)
+    serialisable = rounded.astype(object)
+    serialisable[~np.isfinite(rounded)] = None
+    return {
+        "key": key,
+        "label": label,
+        "group": group,
+        "workflow": workflow,
+        "axis_name": axis_name,
+        "coords": coords,
+        "data": serialisable.tolist(),
+    }
+
+
+def _thin_indices(length: int, max_points: int) -> np.ndarray:
+    """Select evenly spaced indices including the endpoints."""
+    if length <= max_points:
+        return np.arange(length, dtype=int)
+    return np.unique(np.linspace(0, length - 1, num=max_points, dtype=int))
+
+
+def _render_explorer_html(*, payload_name: str) -> str:
+    """Render a standalone HTML explorer backed by a JSON payload."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ARC-SCOPE Explorer</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root {{
+      color-scheme: light;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --border: #d7dde8;
+      --panel: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --bg: #f8fafc;
+      --accent: #0f766e;
+    }}
+    body {{
+      margin: 0;
+      padding: 1rem;
+      background: var(--bg);
+      color: var(--text);
+    }}
+    .shell {{
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      gap: 1rem;
+    }}
+    .panel {{
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1rem 1.1rem;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    }}
+    .controls {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      align-items: end;
+    }}
+    label {{
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }}
+    select, input[type="checkbox"] {{
+      font: inherit;
+    }}
+    select {{
+      width: 100%;
+      padding: 0.55rem 0.7rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+    }}
+    .summary {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }}
+    .summary strong {{
+      color: var(--text);
+    }}
+    .grid {{
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 1rem;
+    }}
+    .plots {{
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }}
+    .plot {{
+      min-height: 360px;
+    }}
+    .note {{
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }}
+    @media (max-width: 980px) {{
+      .grid {{
+        grid-template-columns: 1fr;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="panel">
+      <h1 style="margin-top:0">ARC-SCOPE Interactive Explorer</h1>
+      <p class="note">Browse the saved full-run outputs by clicking a map pixel, selecting a date, and switching between reflectance, SIF, thermal, and input variables.</p>
+      <div class="controls">
+        <label>Output family
+          <select id="groupSelect"></select>
+        </label>
+        <label>Variable
+          <select id="variableSelect"></select>
+        </label>
+        <label>Date
+          <select id="dateSelect"></select>
+        </label>
+        <label>Band / wavelength
+          <select id="bandSelect"></select>
+        </label>
+        <label style="display:flex;align-items:center;gap:0.55rem;padding-top:1.65rem">
+          <input id="dailyToggle" type="checkbox">
+          Interpolate time series to daily cadence
+        </label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="summary" id="summary"></div>
+    </section>
+
+    <div class="grid">
+      <section class="panel">
+        <div id="mapPlot" class="plot"></div>
+      </section>
+      <section class="plots">
+        <section class="panel"><div id="timePlot" class="plot"></div></section>
+        <section class="panel"><div id="spectrumPlot" class="plot"></div></section>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const state = {{
+      payload: null,
+      group: null,
+      key: null,
+      yIndex: 0,
+      xIndex: 0,
+    }};
+
+    const groupSelect = document.getElementById("groupSelect");
+    const variableSelect = document.getElementById("variableSelect");
+    const dateSelect = document.getElementById("dateSelect");
+    const bandSelect = document.getElementById("bandSelect");
+    const dailyToggle = document.getElementById("dailyToggle");
+    const summary = document.getElementById("summary");
+
+    function entriesForGroup(group) {{
+      return Object.values(state.payload.variables).filter((entry) => entry.group === group);
+    }}
+
+    function currentEntry() {{
+      return state.payload.variables[state.key];
+    }}
+
+    function currentDateIndex(entry) {{
+      return Math.min(dateSelect.selectedIndex >= 0 ? dateSelect.selectedIndex : 0, entry.coords.time.length - 1);
+    }}
+
+    function currentBandIndex(entry) {{
+      if (!entry.axis_name) return 0;
+      return Math.min(bandSelect.selectedIndex >= 0 ? bandSelect.selectedIndex : 0, entry.coords[entry.axis_name].length - 1);
+    }}
+
+    function numericDateSeries(timeStrings) {{
+      return timeStrings.map((value) => new Date(value + "T00:00:00Z").getTime());
+    }}
+
+    function interpolateDaily(xs, ys) {{
+      if (xs.length < 2) return {{ xs, ys }};
+      const day = 24 * 3600 * 1000;
+      const xDaily = [];
+      const yDaily = [];
+      let cursor = xs[0];
+      let seg = 0;
+      while (cursor <= xs[xs.length - 1]) {{
+        while (seg < xs.length - 2 && cursor > xs[seg + 1]) seg += 1;
+        const x0 = xs[seg];
+        const x1 = xs[Math.min(seg + 1, xs.length - 1)];
+        const y0 = ys[seg];
+        const y1 = ys[Math.min(seg + 1, ys.length - 1)];
+        const frac = x1 === x0 ? 0 : (cursor - x0) / (x1 - x0);
+        xDaily.push(cursor);
+        yDaily.push(y0 + frac * (y1 - y0));
+        cursor += day;
+      }}
+      return {{ xs: xDaily, ys: yDaily }};
+    }}
+
+    function updateGroupSelect() {{
+      const groups = Array.from(new Set(Object.values(state.payload.variables).map((entry) => entry.group)));
+      groupSelect.innerHTML = groups.map((group) => `<option value="${{group}}">${{group}}</option>`).join("");
+      const defaultEntry = state.payload.variables[state.payload.default_key];
+      state.group = defaultEntry ? defaultEntry.group : groups[0];
+      groupSelect.value = state.group;
+    }}
+
+    function updateVariableSelect() {{
+      const entries = entriesForGroup(state.group);
+      variableSelect.innerHTML = entries
+        .map((entry) => `<option value="${{entry.key}}">${{entry.label}}</option>`)
+        .join("");
+      const preferred = entries.find((entry) => entry.key === state.key) || entries[0];
+      state.key = preferred.key;
+      variableSelect.value = state.key;
+    }}
+
+    function updateDateAndBandSelects() {{
+      const entry = currentEntry();
+      dateSelect.innerHTML = entry.coords.time.map((value) => `<option value="${{value}}">${{value}}</option>`).join("");
+      if (entry.axis_name) {{
+        bandSelect.disabled = false;
+        bandSelect.innerHTML = entry.coords[entry.axis_name]
+          .map((value) => `<option value="${{value}}">${{value}}</option>`)
+          .join("");
+      }} else {{
+        bandSelect.disabled = true;
+        bandSelect.innerHTML = `<option>No spectral axis</option>`;
+      }}
+    }}
+
+    function valueAt(entry, yIndex, xIndex, timeIndex, bandIndex) {{
+      const pixel = entry.data[yIndex][xIndex];
+      if (entry.axis_name) return pixel[timeIndex][bandIndex];
+      return pixel[timeIndex];
+    }}
+
+    function seriesAt(entry, yIndex, xIndex, bandIndex) {{
+      const pixel = entry.data[yIndex][xIndex];
+      if (entry.axis_name) return pixel.map((row) => row[bandIndex]);
+      return pixel.slice();
+    }}
+
+    function spectrumAt(entry, yIndex, xIndex, timeIndex) {{
+      if (!entry.axis_name) return null;
+      return entry.data[yIndex][xIndex][timeIndex];
+    }}
+
+    function mapValues(entry, timeIndex, bandIndex) {{
+      return entry.data.map((row) =>
+        row.map((cell) => (entry.axis_name ? cell[timeIndex][bandIndex] : cell[timeIndex]))
+      );
+    }}
+
+    function updateSummary(entry) {{
+      const dateValue = entry.coords.time[currentDateIndex(entry)];
+      const bandValue = entry.axis_name ? entry.coords[entry.axis_name][currentBandIndex(entry)] : "n/a";
+      summary.innerHTML = `
+        <span><strong>Variable</strong>: ${{entry.label}}</span>
+        <span><strong>Workflow</strong>: ${{entry.workflow}}</span>
+        <span><strong>Selected pixel</strong>: y=${{state.yIndex}}, x=${{state.xIndex}}</span>
+        <span><strong>Date</strong>: ${{dateValue}}</span>
+        <span><strong>Band</strong>: ${{bandValue}}</span>
+      `;
+    }}
+
+    function renderPlots() {{
+      const entry = currentEntry();
+      const timeIndex = currentDateIndex(entry);
+      const bandIndex = currentBandIndex(entry);
+      state.yIndex = Math.min(state.yIndex, entry.coords.y.length - 1);
+      state.xIndex = Math.min(state.xIndex, entry.coords.x.length - 1);
+      updateSummary(entry);
+
+      Plotly.newPlot("mapPlot", [{{
+        z: mapValues(entry, timeIndex, bandIndex),
+        x: entry.coords.x,
+        y: entry.coords.y,
+        type: "heatmap",
+        colorscale: "Viridis",
+        hovertemplate: "x=%{{x}}<br>y=%{{y}}<br>value=%{{z:.4f}}<extra></extra>",
+      }}], {{
+        title: "Spatial map for the selected date and band",
+        margin: {{ t: 50, l: 55, r: 20, b: 45 }},
+        xaxis: {{ title: "x" }},
+        yaxis: {{ title: "y", autorange: "reversed" }},
+      }}, {{ responsive: true }});
+
+      const xs = numericDateSeries(entry.coords.time);
+      let series = seriesAt(entry, state.yIndex, state.xIndex, bandIndex);
+      let xSeries = xs.slice();
+      if (dailyToggle.checked) {{
+        const interpolated = interpolateDaily(xs, series);
+        xSeries = interpolated.xs;
+        series = interpolated.ys;
+      }}
+      Plotly.newPlot("timePlot", [{{
+        x: xSeries,
+        y: series,
+        mode: "lines+markers",
+        line: {{ color: "#0f766e", width: 2 }},
+        marker: {{ size: 5 }},
+        hovertemplate: "%{{x|%Y-%m-%d}}<br>value=%{{y:.4f}}<extra></extra>",
+      }}], {{
+        title: "Pixel time series",
+        margin: {{ t: 50, l: 55, r: 20, b: 45 }},
+        xaxis: {{ type: "date" }},
+        yaxis: {{ title: entry.label }},
+      }}, {{ responsive: true }});
+
+      const spectrum = spectrumAt(entry, state.yIndex, state.xIndex, timeIndex);
+      if (spectrum) {{
+        Plotly.newPlot("spectrumPlot", [{{
+          x: entry.coords[entry.axis_name],
+          y: spectrum,
+          mode: "lines",
+          line: {{ color: "#1d4ed8", width: 2 }},
+          hovertemplate: `${{entry.axis_name}}=%{{x}}<br>value=%{{y:.4f}}<extra></extra>`,
+        }}], {{
+          title: "Pixel spectrum on the selected date",
+          margin: {{ t: 50, l: 55, r: 20, b: 45 }},
+          xaxis: {{ title: entry.axis_name }},
+          yaxis: {{ title: entry.label }},
+        }}, {{ responsive: true }});
+      }} else {{
+        Plotly.newPlot("spectrumPlot", [], {{
+          title: "No spectral axis for this variable",
+          annotations: [{{
+            text: "Choose a spectral variable such as rsot, LoF_, or Lot_ to inspect a full spectrum.",
+            showarrow: false,
+            x: 0.5,
+            y: 0.5,
+            xref: "paper",
+            yref: "paper",
+          }}],
+          margin: {{ t: 50, l: 20, r: 20, b: 20 }},
+          xaxis: {{ visible: false }},
+          yaxis: {{ visible: false }},
+        }}, {{ responsive: true }});
+      }}
+
+      const mapNode = document.getElementById("mapPlot");
+      mapNode.removeAllListeners?.("plotly_click");
+      mapNode.on("plotly_click", (event) => {{
+        const point = event.points?.[0];
+        if (!point || !point.pointIndex) return;
+        state.yIndex = point.pointIndex[0];
+        state.xIndex = point.pointIndex[1];
+        renderPlots();
+      }});
+    }}
+
+    async function bootstrap() {{
+      const response = await fetch("{payload_name}");
+      state.payload = await response.json();
+      const params = new URLSearchParams(window.location.search);
+      const requestedKey = params.get("key");
+      const requestedGroup = params.get("group");
+      updateGroupSelect();
+      if (requestedKey && state.payload.variables[requestedKey]) {{
+        state.group = state.payload.variables[requestedKey].group;
+        groupSelect.value = state.group;
+        state.key = requestedKey;
+      }} else if (requestedGroup && entriesForGroup(requestedGroup).length > 0) {{
+        state.group = requestedGroup;
+        groupSelect.value = state.group;
+        state.key = entriesForGroup(state.group)[0].key;
+      }} else {{
+        state.key = state.payload.default_key;
+      }}
+      updateVariableSelect();
+      updateDateAndBandSelects();
+      if (requestedKey && state.payload.variables[requestedKey]) {{
+        variableSelect.value = requestedKey;
+      }}
+      renderPlots();
+    }}
+
+    groupSelect.addEventListener("change", () => {{
+      state.group = groupSelect.value;
+      updateVariableSelect();
+      updateDateAndBandSelects();
+      renderPlots();
+    }});
+    variableSelect.addEventListener("change", () => {{
+      state.key = variableSelect.value;
+      updateDateAndBandSelects();
+      renderPlots();
+    }});
+    dateSelect.addEventListener("change", renderPlots);
+    bandSelect.addEventListener("change", renderPlots);
+    dailyToggle.addEventListener("change", renderPlots);
+    bootstrap().catch((error) => {{
+      document.body.innerHTML = `<pre style="white-space:pre-wrap;color:#991b1b">Failed to load explorer payload: ${{error}}</pre>`;
+    }});
+  </script>
+</body>
+</html>
+"""
+
+
 def _render_report(result: DualWorkflowExperimentResult, manifest: Mapping[str, str]) -> str:
     """Render a markdown report beside the generated artifact bundle."""
     workflow_names = list(result.workflow_runs)
     workflow_summary = ", ".join(_workflow_label(name) for name in workflow_names)
     has_comparison = len(workflow_names) > 1
+    subset = result.config.get("simulation_subset", {})
+    subset_note = (
+        "SCOPE was run on the full ARC field footprint."
+        if not subset.get("applied")
+        else (
+            "ARC retrieval still covers the full field, while the SCOPE stage is cropped "
+            f"to a `{subset['size_y']} x {subset['size_x']}` window "
+            f"(y `{subset['y_start']}:{subset['y_stop']}`, x `{subset['x_start']}:{subset['x_stop']}`) "
+            f"containing `{subset['valid_pixels_in_window']}` valid pixels. "
+            "This keeps the coupled run practical while preserving the real retrieval, timing, and forcing."
+        )
+    )
     lines = [
         "# ARC-SCOPE End-to-End Experiment",
         "",
@@ -993,20 +1713,30 @@ def _render_report(result: DualWorkflowExperimentResult, manifest: Mapping[str, 
         f"- Crop type: `{result.config['crop_type']}`",
         f"- SCOPE workflow{'s' if len(workflow_names) > 1 else ''}: `{', '.join(workflow_names)}`",
         "",
+        subset_note,
+        "",
         "This run couples two model stages:",
         "",
         "1. ARC retrieves crop biophysical state from Sentinel-2 acquisitions over the field and season.",
         f"2. SCOPE simulates {_pluralise('output', len(workflow_names))} for the {workflow_summary.lower()} workflow{'s' if len(workflow_names) > 1 else ''} using the ARC state, meteorological forcing, and observation geometry.",
         "",
-        "The heavyweight example currently documents the prepared, runnable reflectance-backed experiment path. Other SCOPE workflows may exist elsewhere in the package surface, but they are not the primary documented contract of this report.",
+        "This report and its explorer are generated from the actual workflow outputs present in this artifact bundle. If a workflow is absent, the explorer and figure set only expose what was really saved.",
         "",
         "## What This Run Produces",
         "",
         "- `arc_output.npz` from ARC retrieval plus bridged `post_bio.nc` and `post_bio_scale.nc`.",
         "- Shared forcing datasets: `weather.nc`, `observation.nc`, and `acquisition_table.csv`.",
         "- SCOPE-ready experiment inputs plus one NetCDF output dataset per workflow.",
+        "- `explorer.html` and `explorer_payload.json` for interactive pixel, date, band, and spectrum browsing.",
         "- A figure suite covering field geometry, acquisitions, forcing, retrieved crop state, SCOPE inputs, and simulated outputs.",
         "- `workflow_metrics.csv` and `variable_inventory.csv` to audit the variable coverage and data health.",
+        "",
+        "## Interactive Explorer",
+        "",
+        "- [Open the interactive explorer](explorer.html)",
+        "- [Download the explorer payload](explorer_payload.json)",
+        "",
+        "The explorer is built from the saved run outputs. It keeps the temporal structure of the run, downsamples spatial and spectral axes for responsiveness, and lets you click a map pixel, choose a date, and switch between variable families such as reflectance, SIF, thermal, and inputs when those variables exist in the artifact bundle.",
         "",
         "## Figures",
         "",
@@ -1022,7 +1752,7 @@ def _render_report(result: DualWorkflowExperimentResult, manifest: Mapping[str, 
         "",
         "![Weather forcing](figures/weather_forcing.svg)",
         "",
-        "The weather forcing panels show the atmospheric drivers that feed SCOPE. `Rin` and `Rli` drive radiative forcing, while `Ta` and `u` capture the atmospheric state used during simulation.",
+        "The weather forcing panels show the atmospheric drivers that feed SCOPE. `Rin` and `Rli` drive radiative forcing, while `Ta`, `ea`, `p`, and `u` capture the atmospheric state used during simulation.",
         "",
         "![Observation geometry](figures/observation_geometry.svg)",
         "",
@@ -1040,7 +1770,7 @@ def _render_report(result: DualWorkflowExperimentResult, manifest: Mapping[str, 
         "",
         "![SCOPE input overview](figures/scope_input_overview.svg)",
         "",
-        "This figure combines the most important SCOPE inputs. `LAI`, `Cab`, and `Cw` come from ARC retrieval, `Ta` and `Rin` come from weather forcing, and `tts` shows the solar zenith angle used during the run.",
+        "This figure combines the most important SCOPE inputs. `LAI`, `Cab`, and `Cw` come from ARC retrieval, `Ta` and `Rin` come from weather forcing, and `tts` shows the solar zenith angle used during the run. Coupled energy-balance runs also add the extra gas, aerodynamic, and resistance terms required by the upstream solver.",
         "",
         "### Simulated Outputs",
         "",
@@ -1090,6 +1820,8 @@ def _render_report(result: DualWorkflowExperimentResult, manifest: Mapping[str, 
         "workflow_metrics",
         "variable_inventory",
         "manifest",
+        "explorer_payload",
+        "explorer",
     ):
         if key in manifest:
             lines.append(f"- [{key}]({manifest[key]})")
@@ -1102,8 +1834,9 @@ def _render_report(result: DualWorkflowExperimentResult, manifest: Mapping[str, 
             "## Notes",
             "",
             "- The figure selections are data-driven. If a workflow exposes different variables, the report adapts rather than assuming a fixed output schema.",
+            "- The explorer is a responsive browse layer built from downsampled cubes. The NetCDF outputs remain the authoritative high-resolution artifacts.",
             "- The report is generated from the saved experiment outputs so it stays aligned with the actual run and artifact names.",
-            "- In the default documented path, the two models are ARC retrieval first and SCOPE reflectance simulation second.",
+            "- The two model stages remain ARC retrieval first and SCOPE simulation second, regardless of which workflow outputs are turned on.",
         ]
     )
     return "\n".join(lines) + "\n"

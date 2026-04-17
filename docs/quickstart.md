@@ -1,6 +1,6 @@
 # Quick Start
 
-Start with the [Full Run Example](full-run-example.md) if you want the real ARC retrieval plus the validated SCOPE reflectance run.
+Start with the [Full Run Example](full-run-example.md) if you want the real ARC retrieval plus the saved SCOPE outputs and interactive explorer.
 
 If you need a lighter path first, use the [Core Showcase](showcase-experiment.md). It runs on the core dependency set only.
 
@@ -19,17 +19,31 @@ This installs the core package with numpy, xarray, scipy, and pandas.
 ```bash
 pip install "arc-scope[all]"
 scope fetch-upstream --dest ./upstream/SCOPE
-python3 -m arc_scope.experiments.dual_workflow --scope-root-path ./upstream/SCOPE --workflow reflectance --dtype float32 --output-dir ./full-run-output
+python3 -m arc_scope.experiments.dual_workflow \
+  --start-date 2021-05-25 \
+  --end-date 2021-08-05 \
+  --weather-provider local \
+  --weather-file ./src/arc_scope/data/showcase_weather.csv \
+  --scope-root-path ./upstream/SCOPE \
+  --workflow reflectance \
+  --workflow fluorescence \
+  --workflow thermal \
+  --dtype float32 \
+  --output-dir ./full-run-output
 ```
 
 This writes:
 
 - a shared ARC retrieval bundle
-- one SCOPE input/output pair for the reflectance run
+- one SCOPE input/output pair per requested workflow
 - a figure suite covering field geometry, retrieval inputs, and simulated outputs
+- `explorer.html`
+- `explorer_payload.json`
 - `workflow_metrics.csv`
 - `variable_inventory.csv`
 - `index.md`
+
+The docs embed a compact generated explorer so you can browse the run in GitHub Pages. The full local run also writes per-workflow NetCDF inputs and outputs, which remain the authoritative artifacts for external analysis.
 
 If you are not ready for the heavy runtime yet, run the core showcase instead:
 

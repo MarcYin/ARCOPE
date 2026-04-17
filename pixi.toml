@@ -14,6 +14,7 @@ fetch-scope-upstream = "scope fetch-upstream --dest ./upstream/SCOPE"
 check-runtime = "PYTHONPATH=src python -m arc_scope.experiments.dual_workflow --scope-root-path ./upstream/SCOPE --check-runtime"
 real-experiment = "PYTHONPATH=src python -m arc_scope.experiments.dual_workflow --scope-root-path ./upstream/SCOPE --dtype float32 --output-dir ./docs/assets/full-run"
 real-experiment-local = "PYTHONPATH=src python -m arc_scope.experiments.dual_workflow --weather-provider local --weather-file ./src/arc_scope/data/showcase_weather.csv --scope-root-path ./upstream/SCOPE --output-dir ./docs/assets/full-run-local"
+real-experiment-docs = "PYTHONPATH=src python -m arc_scope.experiments.dual_workflow --start-date 2021-05-25 --end-date 2021-08-05 --weather-provider local --weather-file ./src/arc_scope/data/showcase_weather.csv --scope-root-path ./upstream/SCOPE --workflow reflectance --workflow fluorescence --workflow thermal --dtype float32 --output-dir ./docs/assets/full-run"
 docs-build = "PYTHONPATH=src mkdocs build --strict"
 tests = "PYTHONPATH=src pytest -q"
 
