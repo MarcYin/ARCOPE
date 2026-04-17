@@ -7,7 +7,7 @@ icon: material/satellite-uplink
 
 This page documents the real showcase path from the beginning to the end of the pipeline: one ARC retrieval, one shared weather and geometry alignment stage, then three SCOPE workflows that produce reflectance, SIF, and thermal outputs you can browse interactively.
 
-[Open the explorer](../assets/full-run/explorer.html){ .md-button .md-button--primary }
+[Open the explorer](assets/full-run/explorer.html){ .md-button .md-button--primary }
 [Quick start](quickstart.md){ .md-button }
 [Installation](installation.md){ .md-button }
 
@@ -136,11 +136,11 @@ The first stage answers a simple question: what canopy state should SCOPE simula
 
 <div class="grid cards" markdown>
 
--   ![Field boundary](../assets/full-run/figures/field_boundary.png)
+-   ![Field boundary](assets/full-run/figures/field_boundary.png)
 
     The field boundary confirms the exact target geometry passed into ARC.
 
--   ![Acquisition timeline](../assets/full-run/figures/acquisition_timeline.svg)
+-   ![Acquisition timeline](assets/full-run/figures/acquisition_timeline.svg)
 
     The acquisition timeline shows the real Sentinel-2 dates assimilated by ARC.
 
@@ -148,11 +148,11 @@ The first stage answers a simple question: what canopy state should SCOPE simula
 
 <div class="grid cards" markdown>
 
--   ![ARC biophysics](../assets/full-run/figures/arc_biophysics.svg)
+-   ![ARC biophysics](assets/full-run/figures/arc_biophysics.svg)
 
     `LAI`, `Cab`, and `Cw` define canopy density, chlorophyll content, and water content before the forward simulation stage begins.
 
--   ![ARC peak maps](../assets/full-run/figures/arc_peak_maps.png)
+-   ![ARC peak maps](assets/full-run/figures/arc_peak_maps.png)
 
     The peak-date maps show the spatial heterogeneity that later propagates into the SCOPE outputs.
 
@@ -164,11 +164,11 @@ SCOPE needs more than crop state. It also needs the atmospheric forcing and the 
 
 <div class="grid cards" markdown>
 
--   ![Weather forcing](../assets/full-run/figures/weather_forcing.svg)
+-   ![Weather forcing](assets/full-run/figures/weather_forcing.svg)
 
     `Rin` and `Rli` provide radiative forcing, while `Ta`, `ea`, `p`, and `u` describe the atmospheric state used during the run.
 
--   ![Observation geometry](../assets/full-run/figures/observation_geometry.svg)
+-   ![Observation geometry](assets/full-run/figures/observation_geometry.svg)
 
     Solar zenith, solar azimuth, and viewing geometry come from the field centroid and the acquisition dates, so SCOPE sees the correct illumination and observation angles.
 
@@ -178,7 +178,7 @@ SCOPE needs more than crop state. It also needs the atmospheric forcing and the 
 
 `prepare_scope_dataset()` turns the retrieved ARC state plus forcing and geometry into the input cubes that SCOPE actually consumes.
 
-![SCOPE input overview](../assets/full-run/figures/scope_input_overview.svg)
+![SCOPE input overview](assets/full-run/figures/scope_input_overview.svg)
 
 The key thing to notice here is where each family comes from:
 
@@ -190,10 +190,10 @@ The key thing to notice here is where each family comes from:
 
 The saved inventories let you audit exactly what was present in the bundle:
 
-- [Open `run_config.json`](../assets/full-run/run_config.json)
-- [Open `workflow_metrics.csv`](../assets/full-run/workflow_metrics.csv)
-- [Open `variable_inventory.csv`](../assets/full-run/variable_inventory.csv)
-- [Open `artifact_manifest.json`](../assets/full-run/artifact_manifest.json)
+- [Open `run_config.json`](assets/full-run/run_config.json)
+- [Open `workflow_metrics.csv`](assets/full-run/workflow_metrics.csv)
+- [Open `variable_inventory.csv`](assets/full-run/variable_inventory.csv)
+- [Open `artifact_manifest.json`](assets/full-run/artifact_manifest.json)
 
 ## Step 4: Simulated Outputs
 
@@ -205,13 +205,13 @@ If the page feels static here, use the direct Plotly links below. They open the 
 
     The dedicated `reflectance` branch is the clearest way to inspect band-level and spectrum-level canopy reflectance behaviour.
 
-    [Open interactive reflectance explorer](../assets/full-run/explorer.html?key=reflectance%3Arsot){ .md-button .md-button--primary }
+    [Open interactive reflectance explorer](assets/full-run/explorer.html?key=reflectance%3Arsot){ .md-button .md-button--primary }
 
-    ![Reflectance outputs](../assets/full-run/figures/reflectance_outputs.svg)
+    ![Reflectance outputs](assets/full-run/figures/reflectance_outputs.svg)
 
     The time-series figure surfaces the highest-signal reflectance variables from the saved dataset: `rsot`, `rso`, `rsos`, and `rsod`.
 
-    ![Reflectance snapshot maps](../assets/full-run/figures/reflectance_snapshot_maps.png)
+    ![Reflectance snapshot maps](assets/full-run/figures/reflectance_snapshot_maps.png)
 
     The snapshot maps show how the retrieved spatial structure propagates to the simulated reflectance outputs.
 
@@ -219,14 +219,14 @@ If the page feels static here, use the direct Plotly links below. They open the 
 
     The `fluorescence` branch adds the SIF-oriented signals that were missing from the earlier docs page.
 
-    [Open interactive SIF time series](../assets/full-run/explorer.html?key=fluorescence%3AF740){ .md-button .md-button--primary }
-    [Open interactive SIF spectrum](../assets/full-run/explorer.html?key=fluorescence%3ALoF_){ .md-button }
+    [Open interactive SIF time series](assets/full-run/explorer.html?key=fluorescence%3AF740){ .md-button .md-button--primary }
+    [Open interactive SIF spectrum](assets/full-run/explorer.html?key=fluorescence%3ALoF_){ .md-button }
 
-    ![Fluorescence outputs](../assets/full-run/figures/fluorescence_outputs.svg)
+    ![Fluorescence outputs](assets/full-run/figures/fluorescence_outputs.svg)
 
     This branch exposes outputs such as `LoF_`, `F685`, `F740`, and `LoutF`, which are the core SIF families used in the explorer.
 
-    ![Fluorescence snapshot maps](../assets/full-run/figures/fluorescence_snapshot_maps.png)
+    ![Fluorescence snapshot maps](assets/full-run/figures/fluorescence_snapshot_maps.png)
 
     These maps show where the strongest fluorescence response appears across the field on a representative date.
 
@@ -234,20 +234,20 @@ If the page feels static here, use the direct Plotly links below. They open the 
 
     The `thermal` branch provides the thermal radiance and emissive outputs needed for temperature-oriented browsing.
 
-    [Open interactive thermal time series](../assets/full-run/explorer.html?key=thermal%3ALoutt){ .md-button .md-button--primary }
-    [Open interactive thermal spectrum](../assets/full-run/explorer.html?key=thermal%3ALot_){ .md-button }
+    [Open interactive thermal time series](assets/full-run/explorer.html?key=thermal%3ALoutt){ .md-button .md-button--primary }
+    [Open interactive thermal spectrum](assets/full-run/explorer.html?key=thermal%3ALot_){ .md-button }
 
-    ![Thermal outputs](../assets/full-run/figures/thermal_outputs.svg)
+    ![Thermal outputs](assets/full-run/figures/thermal_outputs.svg)
 
     This branch surfaces variables such as `Lot_`, `Loutt`, `Eoutt`, and `LotBB_`.
 
-    ![Thermal snapshot maps](../assets/full-run/figures/thermal_snapshot_maps.png)
+    ![Thermal snapshot maps](assets/full-run/figures/thermal_snapshot_maps.png)
 
     These maps show where the warm and cool response differs spatially across the field.
 
 === "Shared comparison"
 
-    ![Workflow comparison](../assets/full-run/figures/workflow_comparison.svg)
+    ![Workflow comparison](assets/full-run/figures/workflow_comparison.svg)
 
     This comparison overlays the variables shared across the saved workflow outputs so you can see where the standalone branches agree or diverge.
 
@@ -261,13 +261,13 @@ The explorer is the main reason this page exists. It lets you move from static f
 
     ---
 
-    [Open `explorer.html`](../assets/full-run/explorer.html){ .md-button }
+    [Open `explorer.html`](assets/full-run/explorer.html){ .md-button }
 
 -   :material-file-code-outline: __Browse payload__
 
     ---
 
-    [Open `explorer_payload.json`](../assets/full-run/explorer_payload.json)
+    [Open `explorer_payload.json`](assets/full-run/explorer_payload.json)
 
 </div>
 
