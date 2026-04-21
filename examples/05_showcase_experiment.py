@@ -7,7 +7,7 @@ fluorescence signal to demonstrate the optimisation stack without claiming a
 full ``scope-rtm`` run.
 
 Requirements:
-    pip install arc-scope
+    pip install arcope
 
 Usage:
     python3 -m arc_scope.experiments.showcase --output-dir docs/assets/showcase

@@ -6,7 +6,7 @@ programmatically, so no external files or dependencies beyond the core
 package are needed.
 
 Requirements:
-    pip install arc-scope
+    pip install arcope
 """
 
 from __future__ import annotations

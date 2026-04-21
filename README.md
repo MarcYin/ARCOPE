@@ -2,15 +2,22 @@
 
 **Bridge ARC crop-parameter retrieval with SCOPE radiative-transfer simulations.**
 
+[![PyPI version](https://img.shields.io/pypi/v/arcope.svg)](https://pypi.org/project/arcope/)
+[![Python versions](https://img.shields.io/pypi/pyversions/arcope.svg)](https://pypi.org/project/arcope/)
 [![Tests](https://github.com/MarcYin/ARCOPE/actions/workflows/tests.yml/badge.svg)](https://github.com/MarcYin/ARCOPE/actions/workflows/tests.yml)
-![Python 3.9+](https://img.shields.io/badge/python-3.9%20%7C%203.11%20%7C%203.12-blue)
+[![Docs](https://github.com/MarcYin/ARCOPE/actions/workflows/docs-pages.yml/badge.svg)](https://marcyin.github.io/ARCOPE/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ARC-SCOPE is an integration package that connects the **ARC** (Automated Retrieval of Crop biophysical parameters) system with the **SCOPE** (Soil-Canopy Observation of Photosynthesis and Energy fluxes) radiative-transfer model.  It converts Sentinel-2-derived biophysical parameters into SCOPE-ready inputs, fetches meteorological forcing data, orchestrates the full simulation pipeline, and supports parameter optimisation against observed SIF, thermal, or flux data.
 
-The repo now has two example tracks:
+- **PyPI**: `pip install arcope` · [pypi.org/project/arcope](https://pypi.org/project/arcope/) (imports as `arc_scope`)
+- **Documentation**: [marcyin.github.io/ARCOPE](https://marcyin.github.io/ARCOPE/)
+- **Python**: 3.9, 3.10, 3.11, 3.12, 3.13, 3.14 — CI-verified across the full range
+- **Source**: [github.com/MarcYin/ARCOPE](https://github.com/MarcYin/ARCOPE)
 
-- a **real ARC retrieval -> SCOPE reflectance example** for the heavy runtime
+The repo has two example tracks:
+
+- a **real ARC retrieval -> SCOPE reflectance/SIF/thermal example** for the heavy runtime
 - a **core-dependency showcase** for fast onboarding without ARC or SCOPE
 
 ## Architecture
@@ -48,43 +55,20 @@ The repo now has two example tracks:
 
 ## Installation
 
-**Core package** (numpy, xarray, scipy, pandas only):
+Requires Python **3.9 – 3.14**.
 
-```bash
-pip install arc-scope
-```
+| What you want | Install command |
+|---|---|
+| Core bridge + pipeline | `pip install arcope` |
+| + ARC satellite retrieval (GDAL, JAX) | `pip install "arcope[arc]"` |
+| + SCOPE radiative transfer (PyTorch) | `pip install "arcope[scope]"` |
+| + ERA5 weather downloads | `pip install "arcope[weather]"` |
+| Everything | `pip install "arcope[all]"` |
+| Development (tests + build tools) | `pip install -e ".[dev]"` |
 
-**With ARC satellite retrieval** (requires GDAL):
+The **core package** only needs `numpy`, `xarray`, `scipy`, and `pandas` — the heavy ARC, SCOPE, and ERA5 dependencies are opt-in via extras. This means you can run the bridge and the core-dependency showcase with a minimal install.
 
-```bash
-pip install "arc-scope[arc]"
-```
-
-**With SCOPE simulation** (PyTorch):
-
-```bash
-pip install "arc-scope[scope]"
-```
-
-**With ERA5 weather downloads**:
-
-```bash
-pip install "arc-scope[weather]"
-```
-
-**Everything**:
-
-```bash
-pip install "arc-scope[all]"
-```
-
-**Development**:
-
-```bash
-pip install -e ".[dev]"
-```
-
-See [docs/installation.md](docs/installation.md) for detailed installation instructions including GDAL setup and ERA5 credential configuration.
+See [docs/installation.md](docs/installation.md) for detailed instructions including GDAL setup and ERA5 credential configuration.
 
 ## Quick Start
 
@@ -93,17 +77,19 @@ See [docs/installation.md](docs/installation.md) for detailed installation instr
 Run the real end-to-end example from the bundled Belgium test field in 2021:
 
 ```bash
-pip install "arc-scope[all]"
+pip install "arcope[all]"
 scope fetch-upstream --dest ./upstream/SCOPE
 python3 -m arc_scope.experiments.dual_workflow \
-  --start-date 2021-05-25 \
-  --end-date 2021-08-05 \
+  --start-date 2021-05-15 \
+  --end-date 2021-10-01 \
+  --growth-season-length 60 \
   --weather-provider local \
   --weather-file ./src/arc_scope/data/showcase_weather.csv \
   --scope-root-path ./upstream/SCOPE \
   --workflow reflectance \
   --workflow fluorescence \
   --workflow thermal \
+  --simulation-subset-size 8 \
   --dtype float32 \
   --output-dir ./full-run-output
 ```
@@ -117,7 +103,7 @@ See [docs/full-run-example.md](docs/full-run-example.md) for the artifact bundle
 Run the primary in-repo showcase to assemble SCOPE-shaped inputs, inspect forcing diagnostics, and fit a proxy fluorescence response without requiring ARC, SCOPE, or ERA5 credentials:
 
 ```bash
-pip install arc-scope
+pip install arcope
 python3 -m arc_scope.experiments.showcase --output-dir ./showcase-output
 ```
 
@@ -234,6 +220,14 @@ cd ARCOPE
 pip install -e ".[dev]"
 python -m pytest --tb=short -q
 ```
+
+CI runs the full test suite against Python 3.9, 3.10, 3.11, 3.12, 3.13, and 3.14 on every push.
+
+## Releases
+
+- **Current**: see the [PyPI page](https://pypi.org/project/arcope/) and the [GitHub releases](https://github.com/MarcYin/ARCOPE/releases).
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md).
+- **Maintainers**: release steps are documented in [RELEASING.md](RELEASING.md). Publishes via GitHub Actions with PyPI OIDC trusted publishing — no long-lived tokens.
 
 ## License
 

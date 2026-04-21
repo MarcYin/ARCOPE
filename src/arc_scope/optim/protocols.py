@@ -141,7 +141,7 @@ class TorchOptimizer:
         try:
             import torch
         except ImportError:
-            raise ImportError("PyTorch required. Install with: pip install arc-scope[optim]")
+            raise ImportError("PyTorch required. Install with: pip install arcope[optim]")
 
         optimizer_cls = self._optimizer_cls or torch.optim.Adam
         param_tensor = params.to_torch(device="cpu")

@@ -5,8 +5,8 @@ a synthetic one for inspection, and optionally runs a SCOPE reflectance
 simulation if scope-rtm is installed.
 
 Requirements:
-    pip install arc-scope               # for dataset inspection
-    pip install "arc-scope[scope]"      # to actually run SCOPE
+    pip install arcope               # for dataset inspection
+    pip install "arcope[scope]"      # to actually run SCOPE
 """
 
 from __future__ import annotations
@@ -145,7 +145,7 @@ def main() -> None:
     except ImportError:
         print("scope-rtm is not installed.")
         print("To run SCOPE simulations, install with:")
-        print("  pip install \"arc-scope[scope]\"")
+        print("  pip install \"arcope[scope]\"")
 
     print("\nDone.")
 

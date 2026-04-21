@@ -102,7 +102,7 @@ Bridge ARC crop-state retrieval with SCOPE canopy radiative-transfer simulation 
     - direct bridge and optimization surfaces
 
     ```bash
-    pip install arc-scope
+    pip install arcope
     python3 -m arc_scope.experiments.showcase --output-dir ./showcase-output
     ```
 

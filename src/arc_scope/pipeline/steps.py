@@ -99,7 +99,7 @@ def retrieve_arc(config: PipelineConfig) -> ArcResult:
         from arc import arc_field
     except ImportError:
         raise ImportError(
-            "ARC is required for retrieval. Install with: pip install arc-scope[arc]"
+            "ARC is required for retrieval. Install with: pip install arcope[arc]"
         )
 
     s2_folder = str(config.s2_data_folder or Path("./S2_data"))
@@ -327,7 +327,7 @@ def prepare_scope_dataset(
         return _augment_scope_dataset(dataset, config)
     except ImportError:
         raise ImportError(
-            "SCOPE is required for simulation. Install with: pip install arc-scope[scope]"
+            "SCOPE is required for simulation. Install with: pip install arcope[scope]"
         )
 
 
@@ -356,7 +356,7 @@ def run_scope_simulation(
         from scope.spectral.fluspect import FluspectModel
     except ImportError:
         raise ImportError(
-            "SCOPE and PyTorch are required. Install with: pip install arc-scope[scope]"
+            "SCOPE and PyTorch are required. Install with: pip install arcope[scope]"
         )
 
     _patch_scope_fluspect_stacked_layers(FluspectModel, torch)

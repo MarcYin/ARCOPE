@@ -12,7 +12,7 @@ ARC-SCOPE uses optional dependency groups so you only install what you need.
 The core package installs numpy, xarray, scipy, and pandas. It provides the bridge module for converting ARC outputs to SCOPE format, plus utilities for geometry and I/O.
 
 ```bash
-pip install arc-scope
+pip install arcope
 ```
 
 ## Recommended First Run
@@ -20,7 +20,7 @@ pip install arc-scope
 The showcase experiment runs on the core package only. It already includes a bundled local weather file, so you do not need the ERA5 extra for the first end-to-end walkthrough.
 
 ```bash
-pip install arc-scope
+pip install arcope
 python3 -m arc_scope.experiments.showcase --output-dir ./showcase-output
 ```
 
@@ -56,7 +56,7 @@ conda install -c conda-forge gdal
 ### Install ARC-SCOPE with ARC
 
 ```bash
-pip install "arc-scope[arc]"
+pip install "arcope[arc]"
 ```
 
 This installs ARC directly from its GitHub repository. A working GDAL installation is required for the build to succeed.
@@ -66,14 +66,14 @@ This installs ARC directly from its GitHub repository. A working GDAL installati
 SCOPE runs radiative-transfer simulations on a PyTorch backend. This group installs `scope-rtm` and `torch`.
 
 ```bash
-pip install "arc-scope[scope]"
+pip install "arcope[scope]"
 ```
 
 If you need GPU support, install PyTorch for your CUDA version first, then install the SCOPE group:
 
 ```bash
 pip install torch --index-url https://download.pytorch.org/whl/cu121
-pip install "arc-scope[scope]"
+pip install "arcope[scope]"
 ```
 
 ## With Weather Data (ERA5)
@@ -81,7 +81,7 @@ pip install "arc-scope[scope]"
 The weather module uses the Copernicus Climate Data Store API to download ERA5 reanalysis data.
 
 ```bash
-pip install "arc-scope[weather]"
+pip install "arcope[weather]"
 ```
 
 ### ERA5 Credentials
@@ -104,13 +104,13 @@ Replace `<UID>` and `<API-KEY>` with the values from your CDS profile page.
 Install all optional groups at once:
 
 ```bash
-pip install "arc-scope[all]"
+pip install "arcope[all]"
 ```
 
 This is equivalent to:
 
 ```bash
-pip install "arc-scope[arc,scope,weather,optim]"
+pip install "arcope[arc,scope,weather,optim]"
 ```
 
 ## From Source (Development)
@@ -154,19 +154,19 @@ try:
     from arc import arc_field
     print("ARC: available")
 except ImportError:
-    print("ARC: not installed (pip install 'arc-scope[arc]')")
+    print("ARC: not installed (pip install 'arcope[arc]')")
 
 # Check SCOPE availability
 try:
     from scope import ScopeGridRunner
     print("SCOPE: available")
 except ImportError:
-    print("SCOPE: not installed (pip install 'arc-scope[scope]')")
+    print("SCOPE: not installed (pip install 'arcope[scope]')")
 
 # Check weather (cdsapi) availability
 try:
     import cdsapi
     print("cdsapi: available")
 except ImportError:
-    print("cdsapi: not installed (pip install 'arc-scope[weather]')")
+    print("cdsapi: not installed (pip install 'arcope[weather]')")
 ```

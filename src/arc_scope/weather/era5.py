@@ -95,7 +95,7 @@ class ERA5Provider(WeatherProvider):
         except ImportError:
             raise ImportError(
                 "cdsapi is required for ERA5 downloads. "
-                "Install with: pip install arc-scope[weather]"
+                "Install with: pip install arcope[weather]"
             )
 
         minx, miny, maxx, maxy = _expand_bounds_for_era5(bounds)

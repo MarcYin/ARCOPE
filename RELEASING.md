@@ -1,4 +1,4 @@
-# Releasing arc-scope
+# Releasing arcope
 
 This project publishes to PyPI via GitHub Actions using OIDC trusted publishing —
 no long-lived API tokens required.
@@ -14,7 +14,7 @@ no long-lived API tokens required.
    Use a TestPyPI API token for the very first upload, then delete the token.
 
 2. Configure trusted publishing on both PyPI and TestPyPI:
-   - Project: `arc-scope`
+   - Project: `arcope`
    - Owner: `MarcYin`
    - Repository: `ARCOPE`
    - Workflow: `release.yml`
@@ -41,7 +41,7 @@ no long-lived API tokens required.
 
 4. Verify:
    - PyPI project page shows the new version
-   - `pip install arc-scope==0.1.0` works in a fresh environment
+   - `pip install arcope==0.1.0` works in a fresh environment
 
 ## Dry-run to TestPyPI
 
@@ -51,7 +51,7 @@ To test the release pipeline without affecting production PyPI:
 2. Click **Run workflow**, pick `testpypi`, confirm.
 3. Check the TestPyPI project page and try installing from there:
    ```bash
-   pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ arc-scope
+   pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ arcope
    ```
 
 ## Version scheme

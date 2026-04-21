@@ -173,7 +173,7 @@ Composable building blocks for users who want partial pipelines. Defined in `arc
 
 ### `retrieve_arc(config)`
 
-Run ARC biophysical parameter retrieval. Requires `arc-scope[arc]`.
+Run ARC biophysical parameter retrieval. Requires `arcope[arc]`.
 
 ### `bridge_arc_to_scope(arc_result, year)`
 

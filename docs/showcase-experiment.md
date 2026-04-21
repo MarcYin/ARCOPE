@@ -40,7 +40,7 @@ The showcase uses only the core package dependencies and the code paths already 
 ## Run It
 
 ```bash
-pip install arc-scope
+pip install arcope
 python3 -m arc_scope.experiments.showcase --output-dir ./showcase-output
 ```
 

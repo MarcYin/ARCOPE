@@ -5,8 +5,8 @@ working with reparameterisation transforms, injecting parameters into
 datasets, and the conceptual optimisation workflow.
 
 Requirements:
-    pip install arc-scope                # core (for ParameterSet, transforms)
-    pip install "arc-scope[optim]"       # for TorchOptimizer
+    pip install arcope                # core (for ParameterSet, transforms)
+    pip install "arcope[optim]"       # for TorchOptimizer
 """
 
 from __future__ import annotations
@@ -176,7 +176,7 @@ def main() -> None:
         print(f"  dtype:         {tensor.dtype}")
     except ImportError:
         print("PyTorch is not installed.")
-        print("Install with: pip install \"arc-scope[optim]\"")
+        print("Install with: pip install \"arcope[optim]\"")
 
     # ------------------------------------------------------------------
     # Step 7: Conceptual optimisation workflow

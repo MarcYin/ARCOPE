@@ -75,7 +75,7 @@ Fetch ERA5 hourly reanalysis data from the Copernicus Climate Data Store.
 | `cache_dir` | `str`, `Path`, or `None` | `~/.cache/arc_scope/weather/era5` | Directory for caching downloaded files. |
 | `product` | `str` | `"reanalysis-era5-single-levels"` | CDS product name. |
 
-**Requirements:** `pip install arc-scope[weather]` and a valid `~/.cdsapirc` file.
+**Requirements:** `pip install arcope[weather]` and a valid `~/.cdsapirc` file.
 
 **Unit conversions performed:**
 

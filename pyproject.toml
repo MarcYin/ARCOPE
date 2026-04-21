@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "arc-scope"
+name = "arcope"
 dynamic = ["version"]
 description = "Integration package bridging ARC crop parameter retrieval with SCOPE radiative transfer simulations"
 readme = "README.md"
@@ -58,6 +58,11 @@ Issues = "https://github.com/MarcYin/ARCOPE/issues"
 Changelog = "https://github.com/MarcYin/ARCOPE/releases"
 
 [project.scripts]
+# New primary names matching the PyPI distribution
+arcope-dual-workflow = "arc_scope.experiments.dual_workflow:main"
+arcope-full-run = "arc_scope.experiments.dual_workflow:main"
+arcope-showcase = "arc_scope.experiments.showcase:main"
+# Legacy aliases (kept for backwards compatibility)
 arc-scope-dual-workflow = "arc_scope.experiments.dual_workflow:main"
 arc-scope-full-run = "arc_scope.experiments.dual_workflow:main"
 arc-scope-showcase = "arc_scope.experiments.showcase:main"
@@ -78,7 +83,7 @@ optim = [
     "torch>=2.2",
 ]
 all = [
-    "arc-scope[arc,scope,weather,optim]",
+    "arcope[arc,scope,weather,optim]",
 ]
 dev = [
     "pytest>=8.0",

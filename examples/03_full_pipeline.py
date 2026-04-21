@@ -5,7 +5,7 @@ comments on each field, demonstrates how to use local weather files,
 and shows how to run individual pipeline steps.
 
 Requirements:
-    pip install "arc-scope[all]"    # for the full pipeline
+    pip install "arcope[all]"    # for the full pipeline
 
 The script handles ImportError gracefully so you can read and understand
 the configuration even without all dependencies installed.
@@ -174,7 +174,7 @@ def main() -> None:
         print("  (requires Sentinel-2 data access and GDAL)")
     except ImportError:
         print("\nARC is not installed.")
-        print("  Install with: pip install \"arc-scope[arc]\"")
+        print("  Install with: pip install \"arcope[arc]\"")
 
     # Step 4b: Bridge (always available)
     print("\nBridge module is always available (core dependency).")
@@ -191,7 +191,7 @@ def main() -> None:
         print("  (requires ~/.cdsapirc credentials)")
     except ImportError:
         print("\ncdsapi is not installed.")
-        print("  Install with: pip install \"arc-scope[weather]\"")
+        print("  Install with: pip install \"arcope[weather]\"")
 
     # Step 4d: SCOPE
     try:
@@ -203,7 +203,7 @@ def main() -> None:
         print("  result = pipeline.run()")
     except ImportError:
         print("\nscope-rtm is not installed.")
-        print("  Install with: pip install \"arc-scope[scope]\"")
+        print("  Install with: pip install \"arcope[scope]\"")
 
     # ------------------------------------------------------------------
     # Step 5: Full pipeline execution
@@ -229,12 +229,12 @@ def main() -> None:
             print(f"SCOPE output vars: {list(result.scope_output_ds.data_vars)}")
         except ImportError:
             print("\nNot all dependencies installed for a live run.")
-            print("Install everything with: pip install \"arc-scope[all]\"")
+            print("Install everything with: pip install \"arcope[all]\"")
         except Exception as exc:
             print(f"\nPipeline run failed (expected without real data): {exc}")
 
     except ImportError:
-        print("Pipeline module requires: pip install \"arc-scope[all]\"")
+        print("Pipeline module requires: pip install \"arcope[all]\"")
 
     print("\nDone.")
 

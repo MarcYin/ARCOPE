@@ -9,7 +9,7 @@ This guide then drops one level lower and walks through the bridge module direct
 ## Step 1: Install the Package
 
 ```bash
-pip install arc-scope
+pip install arcope
 ```
 
 This installs the core package with numpy, xarray, scipy, and pandas.
@@ -17,7 +17,7 @@ This installs the core package with numpy, xarray, scipy, and pandas.
 ## Step 2: Run the Full Example
 
 ```bash
-pip install "arc-scope[all]"
+pip install "arcope[all]"
 scope fetch-upstream --dest ./upstream/SCOPE
 python3 -m arc_scope.experiments.dual_workflow \
   --start-date 2021-05-25 \
