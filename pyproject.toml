@@ -6,10 +6,42 @@ build-backend = "setuptools.build_meta"
 name = "arc-scope"
 dynamic = ["version"]
 description = "Integration package bridging ARC crop parameter retrieval with SCOPE radiative transfer simulations"
-requires-python = ">=3.9"
+readme = "README.md"
+requires-python = ">=3.9,<3.15"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [
-    { name = "Feng Yin" },
+    { name = "Feng Yin", email = "ucfafyi@ucl.ac.uk" },
+]
+keywords = [
+    "remote sensing",
+    "crop monitoring",
+    "radiative transfer",
+    "sentinel-2",
+    "SIF",
+    "thermal",
+    "SCOPE",
+    "ARC",
+    "fluorescence",
+    "biophysical retrieval",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3 :: Only",
+    "Typing :: Typed",
 ]
 dependencies = [
     "numpy>=1.24",
@@ -17,6 +49,13 @@ dependencies = [
     "scipy>=1.11",
     "pandas>=2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/MarcYin/ARCOPE"
+Documentation = "https://marcyin.github.io/ARCOPE/"
+Repository = "https://github.com/MarcYin/ARCOPE"
+Issues = "https://github.com/MarcYin/ARCOPE/issues"
+Changelog = "https://github.com/MarcYin/ARCOPE/releases"
 
 [project.scripts]
 arc-scope-dual-workflow = "arc_scope.experiments.dual_workflow:main"
@@ -44,6 +83,8 @@ all = [
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.1",
+    "build>=1.2",
+    "twine>=5.0",
 ]
 docs = [
     "mkdocs>=1.6",
@@ -58,3 +99,5 @@ arc_scope = ["data/*.geojson", "data/*.csv"]
 
 [tool.setuptools_scm]
 fallback_version = "0.1.0"
+version_scheme = "post-release"
+local_scheme = "no-local-version"
