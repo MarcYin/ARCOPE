@@ -99,7 +99,7 @@ def retrieve_arc(config: PipelineConfig) -> ArcResult:
         from arc import arc_field
     except ImportError:
         raise ImportError(
-            "ARC is required for retrieval. Install with: pip install arcope[arc]"
+            "ARC is required for retrieval. Install with: pip install git+https://github.com/MarcYin/ARC"
         )
 
     s2_folder = str(config.s2_data_folder or Path("./S2_data"))

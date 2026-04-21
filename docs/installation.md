@@ -55,11 +55,14 @@ conda install -c conda-forge gdal
 
 ### Install ARC-SCOPE with ARC
 
+ARC is hosted only on GitHub (not PyPI), so install it directly from source after installing arcope:
+
 ```bash
-pip install "arcope[arc]"
+pip install arcope
+pip install git+https://github.com/MarcYin/ARC
 ```
 
-This installs ARC directly from its GitHub repository. A working GDAL installation is required for the build to succeed.
+A working GDAL installation is required for the build to succeed.
 
 ## With SCOPE Support
 
@@ -110,7 +113,8 @@ pip install "arcope[all]"
 This is equivalent to:
 
 ```bash
-pip install "arcope[arc,scope,weather,optim]"
+pip install "arcope[scope,weather,optim]"
+pip install git+https://github.com/MarcYin/ARC  # ARC retrieval (optional)
 ```
 
 ## From Source (Development)
@@ -154,7 +158,7 @@ try:
     from arc import arc_field
     print("ARC: available")
 except ImportError:
-    print("ARC: not installed (pip install 'arcope[arc]')")
+    print("ARC: not installed (pip install git+https://github.com/MarcYin/ARC)")
 
 # Check SCOPE availability
 try:

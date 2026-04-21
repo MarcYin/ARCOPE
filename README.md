@@ -60,7 +60,7 @@ Requires Python **3.9 – 3.14**.
 | What you want | Install command |
 |---|---|
 | Core bridge + pipeline | `pip install arcope` |
-| + ARC satellite retrieval (GDAL, JAX) | `pip install "arcope[arc]"` |
+| + ARC satellite retrieval (GDAL, JAX) | `pip install arcope && pip install git+https://github.com/MarcYin/ARC` |
 | + SCOPE radiative transfer (PyTorch) | `pip install "arcope[scope]"` |
 | + ERA5 weather downloads | `pip install "arcope[weather]"` |
 | Everything | `pip install "arcope[all]"` |

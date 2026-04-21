@@ -173,7 +173,7 @@ Composable building blocks for users who want partial pipelines. Defined in `arc
 
 ### `retrieve_arc(config)`
 
-Run ARC biophysical parameter retrieval. Requires `arcope[arc]`.
+Run ARC biophysical parameter retrieval. Requires ARC installed separately: `pip install git+https://github.com/MarcYin/ARC`.
 
 ### `bridge_arc_to_scope(arc_result, year)`
 

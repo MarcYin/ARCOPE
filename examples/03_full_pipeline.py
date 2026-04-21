@@ -174,7 +174,7 @@ def main() -> None:
         print("  (requires Sentinel-2 data access and GDAL)")
     except ImportError:
         print("\nARC is not installed.")
-        print("  Install with: pip install \"arcope[arc]\"")
+        print("  Install with: pip install git+https://github.com/MarcYin/ARC")
 
     # Step 4b: Bridge (always available)
     print("\nBridge module is always available (core dependency).")

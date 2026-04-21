@@ -68,9 +68,10 @@ arc-scope-full-run = "arc_scope.experiments.dual_workflow:main"
 arc-scope-showcase = "arc_scope.experiments.showcase:main"
 
 [project.optional-dependencies]
-arc = [
-    "ARC @ git+https://github.com/MarcYin/ARC",
-]
+# ARC is hosted only on GitHub (not PyPI), so it cannot be listed as a
+# direct URL dependency of a PyPI-published package. Users should install
+# ARC separately with:
+#   pip install git+https://github.com/MarcYin/ARC
 scope = [
     "scope-rtm>=0.2",
     "torch>=2.2",
@@ -83,7 +84,7 @@ optim = [
     "torch>=2.2",
 ]
 all = [
-    "arcope[arc,scope,weather,optim]",
+    "arcope[scope,weather,optim]",
 ]
 dev = [
     "pytest>=8.0",
