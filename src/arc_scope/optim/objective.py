@@ -76,17 +76,36 @@ class ScopeObjective:
         # Run SCOPE
         output = self._run_scope(ds)
 
+        missing_from_output = [var for var in self._target_variables if var not in output]
+        if missing_from_output:
+            raise ValueError(
+                "SCOPE output is missing target variables: "
+                + ", ".join(missing_from_output)
+            )
+        missing_from_observations = [
+            var for var in self._target_variables if var not in self._observations
+        ]
+        if missing_from_observations:
+            raise ValueError(
+                "Observations are missing target variables: "
+                + ", ".join(missing_from_observations)
+            )
+
         # Compute loss
         total_loss = 0.0
+        compared = False
         for var in self._target_variables:
-            if var in output and var in self._observations:
-                pred = output[var].values.ravel()
-                obs = self._observations[var].values.ravel()
-                # Align shapes (take minimum common length)
-                n = min(len(pred), len(obs))
-                mask = np.isfinite(pred[:n]) & np.isfinite(obs[:n])
-                if mask.any():
-                    total_loss += float(self._loss_fn(pred[:n][mask], obs[:n][mask]))
+            pred = output[var].values.ravel()
+            obs = self._observations[var].values.ravel()
+            # Align shapes (take minimum common length)
+            n = min(len(pred), len(obs))
+            mask = np.isfinite(pred[:n]) & np.isfinite(obs[:n])
+            if mask.any():
+                compared = True
+                total_loss += float(self._loss_fn(pred[:n][mask], obs[:n][mask]))
+
+        if not compared:
+            raise ValueError("Objective has no finite prediction/observation pairs.")
 
         return total_loss
 

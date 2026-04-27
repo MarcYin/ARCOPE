@@ -91,6 +91,45 @@ Master configuration dataclass for the ARC-SCOPE pipeline.
 | `save_arc_npz` | `bool` | `True` | Whether to save ARC outputs to NPZ. |
 | `save_scope_netcdf` | `bool` | `True` | Whether to save SCOPE outputs to NetCDF. |
 
+### Optimization Options
+
+For practical fitting examples across fluorescence, thermal, and coupled
+energy-balance workflows, see the [Optimization Guide](../optimization-guide.md).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `optimize` | `bool` | `False` | Run a SCOPE parameter optimisation loop before returning the final output. |
+| `optim_config` | `dict` or `None` | `None` | Optimisation configuration. `optim_config["enabled"] = True` also enables optimisation for runner payloads that carry the flag inside the optimisation block. |
+
+When optimisation is enabled, `optim_config` must provide observed target data through `observations` (an `xarray.Dataset`, `xarray.DataArray`, or mapping) or `observations_path` (NetCDF). `target_variables` defaults to all variables in the observations dataset when omitted.
+
+Example:
+
+```python
+PipelineConfig(
+    ...,
+    scope_workflow="fluorescence",
+    optim_config={
+        "enabled": True,
+        "observations_path": "observed_sif.nc",
+        "target_variables": ["F740"],
+        "parameters": [
+            {
+                "name": "fqe",
+                "initial": 0.01,
+                "lower": 0.001,
+                "upper": 0.1,
+                "transform": "log",
+            }
+        ],
+        "optimizer": "scipy",
+        "max_iter": 50,
+    },
+)
+```
+
+If `parameters` is omitted, ARC-SCOPE chooses a workflow default: `fqe` for fluorescence, `rss`/`rbs` for thermal, and the energy-balance preset for `energy-balance`.
+
 ### Properties
 
 **`resolved_scope_options`** -- Merges workflow defaults with user overrides:
@@ -114,6 +153,10 @@ class ArcScopePipeline:
     def run_bridge(self, arc_result: ArcResult) -> tuple[xr.DataArray, xr.DataArray]: ...
     def run_weather(self) -> xr.Dataset: ...
     def run_observation(self, arc_result: ArcResult) -> xr.Dataset: ...
+    def run_optimization(
+        self,
+        scope_input_ds: xr.Dataset,
+    ) -> tuple[xr.Dataset, xr.Dataset, OptimizationResult]: ...
     def run_scope(
         self,
         post_bio_da: xr.DataArray,
@@ -129,7 +172,7 @@ End-to-end pipeline from field definition to SCOPE simulation.
 
 Execute the full pipeline: ARC -> Bridge -> Weather -> SCOPE.
 
-Returns a `PipelineResult` containing all intermediate and final outputs.
+Returns a `PipelineResult` containing all intermediate and final outputs. When `optimize=True` or `optim_config["enabled"] = True`, the final `scope_input_ds` and `scope_output_ds` are the optimised products, and `optimization_result` records the initial/final losses, parameter values, optimiser, convergence flag, and target variables. The output dataset also carries `arc_scope_optimization_*` attrs for downstream manifests.
 
 ### `run_arc()`
 
@@ -147,6 +190,10 @@ Fetch weather data for the configured field and time range. Returns an `xr.Datas
 
 Build the observation geometry dataset. Returns an `xr.Dataset`.
 
+### `run_optimization(scope_input_ds)`
+
+Run the configured optimisation loop against observed target variables, inject the optimised parameter values into the prepared SCOPE input dataset, and run the final SCOPE simulation. Raises `ValueError` if optimisation is enabled without observed target data or if requested targets are absent.
+
 ### `run_scope(post_bio_da, post_bio_scale_da, weather_ds, observation_ds)`
 
 Prepare and run SCOPE from bridge outputs + weather + observations. Returns an `xr.Dataset`.
@@ -163,9 +210,28 @@ class PipelineResult:
     observation_ds: xr.Dataset | None = None
     scope_input_ds: xr.Dataset | None = None
     scope_output_ds: xr.Dataset | None = None
+    optimization_result: OptimizationResult | None = None
 ```
 
 Container for full pipeline results. All fields are `None` until their corresponding step completes.
+
+## `OptimizationResult`
+
+```python
+@dataclass
+class OptimizationResult:
+    status: str
+    target_variables: list[str]
+    initial_loss: float
+    optimized_loss: float
+    parameters_initial: dict[str, float]
+    parameters_optimized: dict[str, float]
+    optimizer: str
+    converged: bool
+    metadata: dict[str, Any] = field(default_factory=dict)
+```
+
+Summary of a completed SCOPE parameter optimisation.
 
 ## Step Functions
 

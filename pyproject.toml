@@ -62,10 +62,12 @@ Changelog = "https://github.com/MarcYin/ARCOPE/releases"
 arcope-dual-workflow = "arc_scope.experiments.dual_workflow:main"
 arcope-full-run = "arc_scope.experiments.dual_workflow:main"
 arcope-showcase = "arc_scope.experiments.showcase:main"
+arcope-optimization-examples = "arc_scope.experiments.optimization_examples:main"
 # Legacy aliases (kept for backwards compatibility)
 arc-scope-dual-workflow = "arc_scope.experiments.dual_workflow:main"
 arc-scope-full-run = "arc_scope.experiments.dual_workflow:main"
 arc-scope-showcase = "arc_scope.experiments.showcase:main"
+arc-scope-optimization-examples = "arc_scope.experiments.optimization_examples:main"
 
 [project.optional-dependencies]
 # ARC is hosted only on GitHub (not PyPI), so it cannot be listed as a
@@ -95,6 +97,7 @@ dev = [
 docs = [
     "mkdocs>=1.6",
     "mkdocs-material>=9.7",
+    "matplotlib>=3.7",
 ]
 
 [tool.setuptools.packages.find]

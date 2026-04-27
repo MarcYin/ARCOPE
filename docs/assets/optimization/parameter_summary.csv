@@ -1,0 +1,9 @@
+scenario,parameter,initial,optimized,true
+sif,fqe,0.01,0.01799999991003355,0.018
+thermal,rss,500.0,838.5037499362974,850.0
+thermal,rbs,10.0,18.69139372969946,18.0
+energy_balance,fqe,0.01,0.01622199825014773,0.016
+energy_balance,rss,500.0,708.5324977430722,720.0
+energy_balance,rbs,10.0,14.40399364235199,14.0
+energy_balance,Cd,0.2,0.320208062792353,0.28
+energy_balance,rwc,0.5,0.5902274649664543,0.62

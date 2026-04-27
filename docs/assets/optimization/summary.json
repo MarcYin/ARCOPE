@@ -1,0 +1,79 @@
+{
+  "sif": {
+    "title": "SIF fit",
+    "workflow": "fluorescence",
+    "target_variables": [
+      "F740"
+    ],
+    "initial_loss": 10.423289394875322,
+    "optimized_loss": 4.7222222223538165e-05,
+    "converged": true,
+    "parameters_initial": {
+      "fqe": 0.01
+    },
+    "parameters_optimized": {
+      "fqe": 0.01799999991003355
+    },
+    "parameters_true": {
+      "fqe": 0.018
+    },
+    "optimizer": "scipy:L-BFGS-B"
+  },
+  "thermal": {
+    "title": "Thermal fit",
+    "workflow": "thermal",
+    "target_variables": [
+      "Loutt"
+    ],
+    "initial_loss": 3.557059555711218,
+    "optimized_loss": 0.00016768141002214626,
+    "converged": true,
+    "parameters_initial": {
+      "rss": 500.0,
+      "rbs": 10.0
+    },
+    "parameters_optimized": {
+      "rss": 838.5037499362974,
+      "rbs": 18.69139372969946
+    },
+    "parameters_true": {
+      "rss": 850.0,
+      "rbs": 18.0
+    },
+    "optimizer": "scipy:L-BFGS-B"
+  },
+  "energy_balance": {
+    "title": "Coupled energy-balance fit",
+    "workflow": "energy-balance",
+    "target_variables": [
+      "F740",
+      "Loutt",
+      "LE"
+    ],
+    "initial_loss": 60.65193083184636,
+    "optimized_loss": 0.0008680946826803448,
+    "converged": true,
+    "parameters_initial": {
+      "fqe": 0.01,
+      "rss": 500.0,
+      "rbs": 10.0,
+      "Cd": 0.2,
+      "rwc": 0.5
+    },
+    "parameters_optimized": {
+      "fqe": 0.01622199825014773,
+      "rss": 708.5324977430722,
+      "rbs": 14.40399364235199,
+      "Cd": 0.320208062792353,
+      "rwc": 0.5902274649664543
+    },
+    "parameters_true": {
+      "fqe": 0.016,
+      "rss": 720.0,
+      "rbs": 14.0,
+      "Cd": 0.28,
+      "rwc": 0.62
+    },
+    "optimizer": "scipy:L-BFGS-B"
+  }
+}

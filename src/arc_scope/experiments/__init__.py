@@ -6,6 +6,7 @@ from typing import Any
 
 __all__ = [
     "DualWorkflowExperimentResult",
+    "generate_optimization_examples",
     "ShowcaseExperimentResult",
     "ShowcaseSummary",
     "WorkflowExperimentResult",
@@ -37,6 +38,12 @@ def __getattr__(name: str) -> Any:
             if name == "write_full_run_artifacts":
                 return dual_workflow.write_dual_workflow_artifacts
             return getattr(dual_workflow, name)
+        if name == "generate_optimization_examples":
+            from arc_scope.experiments.optimization_examples import (
+                generate_optimization_examples,
+            )
+
+            return generate_optimization_examples
         from arc_scope.experiments import showcase
 
         return getattr(showcase, name)

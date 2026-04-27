@@ -211,6 +211,7 @@ Working examples are in the [`examples/`](examples/) directory:
 - **[04_optimization_demo.py](examples/04_optimization_demo.py)** -- Parameter optimisation workflow with transforms and injection
 - **[05_showcase_experiment.py](examples/05_showcase_experiment.py)** -- Core-only showcase experiment with local weather, geometry, radiation partitioning, and proxy calibration
 - **[06_dual_workflow_full_run.py](examples/06_dual_workflow_full_run.py)** -- Real ARC retrieval plus a documented SCOPE reflectance run with artifact generation
+- **[07_optimization_examples.py](examples/07_optimization_examples.py)** -- Generate reproducible optimisation output tables and SVG fit plots for the optimisation guide
 
 ## Development
 

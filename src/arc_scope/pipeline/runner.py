@@ -5,11 +5,15 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import xarray as xr
 
 from arc_scope.pipeline.config import PipelineConfig
+from arc_scope.pipeline.optimization import (
+    OptimizationResult,
+    optimization_enabled,
+    run_pipeline_optimization,
+)
 from arc_scope.pipeline.steps import (
     ArcResult,
     bridge_arc_to_scope,
@@ -34,6 +38,7 @@ class PipelineResult:
     observation_ds: xr.Dataset | None = None
     scope_input_ds: xr.Dataset | None = None
     scope_output_ds: xr.Dataset | None = None
+    optimization_result: OptimizationResult | None = None
 
 
 class ArcScopePipeline:
@@ -101,12 +106,20 @@ class ArcScopePipeline:
             self.config,
         )
 
-        # Step 6: Run SCOPE simulation
-        logger.info("Running SCOPE simulation...")
-        result.scope_output_ds = run_scope_simulation(
-            result.scope_input_ds,
-            self.config,
-        )
+        # Step 6: Run SCOPE simulation or configured optimisation
+        if self._optimization_enabled():
+            logger.info("Running SCOPE parameter optimisation...")
+            (
+                result.scope_input_ds,
+                result.scope_output_ds,
+                result.optimization_result,
+            ) = self.run_optimization(result.scope_input_ds)
+        else:
+            logger.info("Running SCOPE simulation...")
+            result.scope_output_ds = run_scope_simulation(
+                result.scope_input_ds,
+                self.config,
+            )
 
         # Step 7: Save outputs
         if self.config.save_scope_netcdf:
@@ -152,6 +165,21 @@ class ArcScopePipeline:
             self.config,
         )
         return run_scope_simulation(scope_ds, self.config)
+
+    def run_optimization(
+        self,
+        scope_input_ds: xr.Dataset,
+    ) -> tuple[xr.Dataset, xr.Dataset, OptimizationResult]:
+        """Optimise configured SCOPE parameters and run the final simulation."""
+        return run_pipeline_optimization(
+            self.config,
+            scope_input_ds,
+            scope_runner=lambda dataset: run_scope_simulation(dataset, self.config),
+        )
+
+    def _optimization_enabled(self) -> bool:
+        """Return whether the pipeline should run the optimisation branch."""
+        return optimization_enabled(self.config)
 
     def _minimal_weather(self, arc_result: ArcResult) -> xr.Dataset:
         """Create a minimal weather dataset for reflectance-only simulations.

@@ -6,6 +6,40 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-04-27
+
+### Added
+- `ArcScopePipeline.run()` now honours `PipelineConfig.optimize` and
+  `optim_config["enabled"]` / nested `optim.enabled` payloads by running a real
+  `ScopeObjective` + optimiser loop before the final SCOPE simulation.
+- Added `OptimizationResult` metadata to `PipelineResult` and
+  `arc_scope_optimization_*` dataset attrs so downstream manifests can
+  distinguish optimised runs from plain simulations.
+- Added pipeline optimisation configuration docs covering observations,
+  target variables, parameter specs, workflow defaults, and scipy optimiser
+  settings.
+- Added an optimisation guide with fluorescence, thermal, coupled
+  energy-balance, and fixed-parameter fitting examples plus interpretation of
+  optimisation outputs.
+- Added reproducible optimisation example artifacts, including generated JSON,
+  CSV, and SVG visualisations for SIF, thermal, and coupled energy-balance
+  fits.
+
+### Fixed
+- Optimisation-enabled runner submissions now fail loudly when observed target
+  data is missing instead of returning a successful unoptimised simulation.
+- `ScopeObjective.evaluate()` now raises when requested target variables are
+  absent or no finite prediction/observation pairs exist, preventing silent
+  zero-loss optimisation results.
+
+### Changed
+- Moved pipeline optimisation wiring into `arc_scope.pipeline.optimization`
+  while keeping `ArcScopePipeline.run_optimization()` as the runner-facing entry
+  point.
+- Added an explicit source distribution manifest so docs/examples/tests ship
+  with release tarballs while heavyweight generated NetCDF/NPZ intermediates
+  stay out of the package.
+
 ## [0.1.0] - 2026-04-18
 
 ### Added
@@ -47,5 +81,6 @@ All notable changes to arcope are documented here. This project follows
 - **CI**: GitHub Actions for tests (Python 3.9-3.14), docs build + deploy,
   and PyPI release via OIDC trusted publishing.
 
-[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/MarcYin/ARCOPE/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/MarcYin/ARCOPE/releases/tag/v0.1.0

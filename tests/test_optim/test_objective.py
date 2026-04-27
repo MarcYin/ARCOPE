@@ -50,6 +50,21 @@ def test_scope_objective_init():
     assert obj._loss_fn is _mse_loss
 
 
+def test_scope_objective_raises_for_missing_output_target():
+    """Missing target variables should not silently produce a zero loss."""
+    base_ds = xr.Dataset({"fqe": ("time", [0.01, 0.02])})
+    obs_ds = xr.Dataset({"sif": ("time", [0.5, 0.6])})
+    obj = ScopeObjective(
+        base_dataset=base_ds,
+        observations=obs_ds,
+        target_variables=["sif"],
+        scope_runner=lambda ds: xr.Dataset({"other": ("time", [1.0, 2.0])}),
+    )
+
+    with pytest.raises(ValueError, match="missing target variables"):
+        obj.evaluate({"fqe": 0.01})
+
+
 # ---------------------------------------------------------------------------
 # ParameterSet.inject_into_dataset test
 # ---------------------------------------------------------------------------

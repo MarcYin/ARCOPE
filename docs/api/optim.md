@@ -2,6 +2,9 @@
 
 The optimisation module provides parameter tuning for SCOPE simulations. It adjusts parameters that cannot be retrieved from reflectance (e.g., fluorescence quantum efficiency, soil resistance) while holding ARC-retrieved biophysical parameters fixed.
 
+For end-to-end runner examples with SIF, thermal, and coupled energy-balance
+fits, see the [Optimization Guide](../optimization-guide.md).
+
 ## `ParameterSpec`
 
 ```python
