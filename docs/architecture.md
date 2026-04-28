@@ -163,15 +163,16 @@ ERA5 variables are converted to SCOPE conventions:
 ## How the Optimisation Loop Works
 
 1. ARC-retrieved biophysical parameters are held fixed throughout optimisation.
-2. A `ParameterSet` defines which SCOPE parameters to optimise (e.g., `fqe`, `rss`), with bounds and reparameterisation transforms.
+2. A `ParameterSet` defines which SCOPE parameters to optimise (e.g., `fqe`, prescribed thermal temperatures, or energy-balance resistance terms), with bounds and reparameterisation transforms.
 3. The `ScopeObjective` injects the current parameter values into the prepared SCOPE dataset, runs a forward simulation, and computes a scalar loss against observations.
 4. An `Optimizer` iterates:
    - Convert unconstrained vector to physical values via `ParameterSet.from_array()`
    - Inject into SCOPE dataset via `ParameterSet.inject_into_dataset()`
    - Run SCOPE forward pass
    - Compute loss (default: MSE between predicted and observed SIF/LST)
-   - For scipy/L-BFGS-B, supply an autograd-backed `jac` callable when the
-     forward path is PyTorch-differentiable, avoiding finite-difference probing
+   - For scipy/L-BFGS-B on built-in SCOPE runs, evaluate the `jac` through the
+     tensor-preserving SCOPE path so parameter gradients come from one PyTorch
+     backward pass instead of finite-difference probing
    - Update parameters
 5. The optimised `ParameterSet` is returned with updated initial values.
 
@@ -189,6 +190,7 @@ This separation means:
 
 - Bridge conversion, weather fetching, and data preparation work without PyTorch
 - SCOPE simulation requires `torch >= 2.2` and `scope-rtm >= 0.2`
-- The optimisation module bridges both worlds: `ScopeObjective.evaluate()` is numpy-compatible, while `evaluate_torch()` and `evaluate_value_and_gradient()` provide a PyTorch-autograd-compatible interface for scipy's `jac` hook and `TorchOptimizer`
+- The optimisation module bridges both worlds: `ScopeObjective.evaluate()` is numpy-compatible for reported initial/final losses, while `evaluate_torch()` and `evaluate_value_and_gradient()` call `run_scope_simulation_tensors()` for scipy's `jac` hook and `TorchOptimizer`
+- `run_scope_simulation_tensors()` calls SCOPE's raw tensor-returning workflow methods and computes optimisation losses before xarray/NetCDF assembly, because dataset assembly is an export boundary that detaches tensors
 
 The design allows lightweight use cases (bridge-only, data inspection) without heavy GPU dependencies, while supporting full differentiable simulation when all components are installed.

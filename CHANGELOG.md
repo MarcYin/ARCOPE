@@ -6,6 +6,23 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-04-28
+
+### Fixed
+- Corrected the scipy autograd release by adding a tensor-preserving SCOPE
+  objective path for built-in `ArcScopePipeline` optimisation. Gradient
+  evaluations now call SCOPE's raw tensor-returning workflow methods and compute
+  loss before xarray/NetCDF dataset assembly can detach tensors.
+- Built-in SCOPE pipeline optimisation now defaults `use_autograd_jac` to
+  `"required"` so production runs fail loudly if the forward graph detaches.
+  Custom proxy runners keep the compatibility default of `"auto"`.
+- `ArcScopePipeline.run_optimization()` now uses the built-in optimisation
+  runners directly instead of passing a custom lambda that disabled the
+  tensor-preserving autograd branch.
+- The standalone thermal preset now fits the prescribed thermal variables
+  (`Tcu`, `Tch`, `Tsu`, `Tsh`); resistance terms (`rss`, `rbs`) remain part of
+  the coupled energy-balance preset.
+
 ## [0.1.2] - 2026-04-28
 
 ### Added

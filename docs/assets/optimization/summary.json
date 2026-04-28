@@ -23,22 +23,29 @@
     "title": "Thermal fit",
     "workflow": "thermal",
     "target_variables": [
-      "Loutt"
+      "Loutt",
+      "Eoutt"
     ],
-    "initial_loss": 3.557059555711218,
-    "optimized_loss": 0.00016768141002214626,
+    "initial_loss": 5.695557978061831,
+    "optimized_loss": 0.00035583750986200647,
     "converged": true,
     "parameters_initial": {
-      "rss": 500.0,
-      "rbs": 10.0
+      "Tcu": 25.0,
+      "Tch": 24.0,
+      "Tsu": 30.0,
+      "Tsh": 27.0
     },
     "parameters_optimized": {
-      "rss": 838.5037499362974,
-      "rbs": 18.69139372969946
+      "Tcu": 30.391043163770778,
+      "Tch": 27.124004251699137,
+      "Tsu": 33.314562193877464,
+      "Tsh": 28.485587307871633
     },
     "parameters_true": {
-      "rss": 850.0,
-      "rbs": 18.0
+      "Tcu": 29.5,
+      "Tch": 26.5,
+      "Tsu": 34.0,
+      "Tsh": 29.0
     },
     "optimizer": "scipy:L-BFGS-B"
   },

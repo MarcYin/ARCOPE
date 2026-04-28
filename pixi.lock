@@ -229,26 +229,28 @@ packages:
   - pynndescent
   - eof @ https://github.com/profLewis/eof/archive/refs/heads/main.zip
 - pypi: ./
-  name: arc-scope
-  version: 0.1.1.dev4+ga2ac30a96.d20260416
-  sha256: eec3ff2af4464d83acb8a8561df48f788eb8da1bcdca75722c089aee7840cd4a
+  name: arcope
+  version: 0.1.2.post0
+  sha256: ccf673df2085c4c35133065e34395f7fc8b0a27e3962b5601661a11be8ea5c61
   requires_dist:
   - numpy>=1.24
   - xarray>=2023.1
   - scipy>=1.11
   - pandas>=2.0
-  - arc @ git+https://github.com/MarcYin/ARC ; extra == 'arc'
   - scope-rtm>=0.2 ; extra == 'scope'
   - torch>=2.2 ; extra == 'scope'
   - cdsapi>=0.6 ; extra == 'weather'
   - scope-rtm>=0.2 ; extra == 'optim'
   - torch>=2.2 ; extra == 'optim'
-  - arc-scope[arc,optim,scope,weather] ; extra == 'all'
+  - arcope[optim,scope,weather] ; extra == 'all'
   - pytest>=8.0 ; extra == 'dev'
   - pytest-cov>=4.1 ; extra == 'dev'
+  - build>=1.2 ; extra == 'dev'
+  - twine>=5.0 ; extra == 'dev'
   - mkdocs>=1.6 ; extra == 'docs'
   - mkdocs-material>=9.7 ; extra == 'docs'
-  requires_python: '>=3.9'
+  - matplotlib>=3.7 ; extra == 'docs'
+  requires_python: '>=3.9,<3.15'
 - pypi: https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl
   name: attrs
   version: 26.1.0

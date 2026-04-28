@@ -174,7 +174,6 @@ class ArcScopePipeline:
         return run_pipeline_optimization(
             self.config,
             scope_input_ds,
-            scope_runner=lambda dataset: run_scope_simulation(dataset, self.config),
         )
 
     def _optimization_enabled(self) -> bool:

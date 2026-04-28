@@ -23,7 +23,8 @@ from arc_scope.optim.parameters import (
 from arc_scope.optim.protocols import Optimizer, ScipyOptimizer
 from arc_scope.pipeline.config import PipelineConfig
 
-ScopeRunner = Callable[[xr.Dataset], xr.Dataset]
+ScopeRunner = Callable[[xr.Dataset], Any]
+TorchScopeRunner = Callable[[xr.Dataset, Mapping[str, Any]], Any]
 
 
 @dataclass
@@ -59,8 +60,23 @@ def run_pipeline_optimization(
     observations = _resolve_observations(optim_config)
     target_variables = _resolve_target_variables(optim_config, observations)
     parameter_set = _resolve_parameter_set(config, optim_config)
-    optimizer, optimizer_name = _build_optimizer(optim_config)
+    default_autograd_jac = "auto" if scope_runner is not None else "required"
+    optimizer, optimizer_name = _build_optimizer(
+        optim_config,
+        default_autograd_jac=default_autograd_jac,
+    )
     runner = scope_runner or _default_scope_runner(config)
+    torch_runner = (
+        None
+        if scope_runner is not None
+        or _autograd_disabled_value(
+            _resolve_autograd_jac_setting(
+                optim_config,
+                default=default_autograd_jac,
+            )
+        )
+        else _default_torch_scope_runner(config)
+    )
     loss_fn = optim_config.get("loss_fn")
 
     initial_values = _parameter_values(parameter_set)
@@ -70,6 +86,7 @@ def run_pipeline_optimization(
         target_variables=target_variables,
         loss_fn=loss_fn,
         scope_runner=runner,
+        torch_scope_runner=torch_runner,
         config=config,
     )
 
@@ -297,19 +314,15 @@ def _parameter_spec_from_mapping(spec: Mapping[str, Any]) -> ParameterSpec:
     )
 
 
-def _build_optimizer(optim_config: Mapping[str, Any]) -> tuple[Optimizer, str]:
+def _build_optimizer(
+    optim_config: Mapping[str, Any],
+    *,
+    default_autograd_jac: bool | str = "required",
+) -> tuple[Optimizer, str]:
     """Build the configured optimiser."""
-    optimizer_config = optim_config.get("optimizer", "scipy")
+    optimizer_config, optimizer_type, optimizer_options = _optimizer_config_parts(optim_config)
     if isinstance(optimizer_config, Optimizer):
         return optimizer_config, optimizer_config.__class__.__name__
-    if isinstance(optimizer_config, Mapping):
-        optimizer_type = str(
-            optimizer_config.get("type", optimizer_config.get("name", "scipy"))
-        )
-        optimizer_options = dict(optimizer_config)
-    else:
-        optimizer_type = str(optimizer_config)
-        optimizer_options = {}
 
     if optimizer_type.lower() not in {"scipy", "scipy-minimize", "minimize"}:
         raise ValueError(
@@ -329,16 +342,9 @@ def _build_optimizer(optim_config: Mapping[str, Any]) -> tuple[Optimizer, str]:
         or 100
     )
     tol = float(optim_config.get("tol") or optimizer_options.get("tol") or 1e-6)
-    use_autograd_jac = (
-        optim_config.get("use_autograd_jac")
-        if "use_autograd_jac" in optim_config
-        else optim_config.get(
-            "autograd_jac",
-            optimizer_options.get(
-                "use_autograd_jac",
-                optimizer_options.get("autograd_jac", "auto"),
-            ),
-        )
+    use_autograd_jac = _resolve_autograd_jac_setting(
+        optim_config,
+        default=default_autograd_jac,
     )
     return (
         ScipyOptimizer(
@@ -349,6 +355,53 @@ def _build_optimizer(optim_config: Mapping[str, Any]) -> tuple[Optimizer, str]:
         ),
         f"scipy:{method}",
     )
+
+
+def _optimizer_config_parts(
+    optim_config: Mapping[str, Any],
+) -> tuple[Any, str, dict[str, Any]]:
+    optimizer_config = optim_config.get("optimizer", "scipy")
+    if isinstance(optimizer_config, Optimizer):
+        return optimizer_config, optimizer_config.__class__.__name__, {}
+    if isinstance(optimizer_config, Mapping):
+        optimizer_type = str(
+            optimizer_config.get("type", optimizer_config.get("name", "scipy"))
+        )
+        return optimizer_config, optimizer_type, dict(optimizer_config)
+    return optimizer_config, str(optimizer_config), {}
+
+
+def _resolve_autograd_jac_setting(
+    optim_config: Mapping[str, Any],
+    *,
+    default: bool | str,
+) -> bool | str:
+    _, _, optimizer_options = _optimizer_config_parts(optim_config)
+    return (
+        optim_config.get("use_autograd_jac")
+        if "use_autograd_jac" in optim_config
+        else optim_config.get(
+            "autograd_jac",
+            optimizer_options.get(
+                "use_autograd_jac",
+                optimizer_options.get("autograd_jac", default),
+            ),
+        )
+    )
+
+
+def _autograd_disabled_value(value: Any) -> bool:
+    if value is False:
+        return True
+    return str(value).lower() in {
+        "0",
+        "false",
+        "no",
+        "off",
+        "disable",
+        "disabled",
+        "none",
+    }
 
 
 def _parameter_values(parameter_set: ParameterSet) -> dict[str, float]:
@@ -390,6 +443,19 @@ def _default_scope_runner(config: PipelineConfig) -> ScopeRunner:
         from arc_scope.pipeline.steps import run_scope_simulation
 
         return run_scope_simulation(dataset, config)
+
+    return _run
+
+
+def _default_torch_scope_runner(config: PipelineConfig) -> TorchScopeRunner:
+    def _run(dataset: xr.Dataset, params: Mapping[str, Any]) -> Mapping[str, Any]:
+        from arc_scope.pipeline.steps import run_scope_simulation_tensors
+
+        return run_scope_simulation_tensors(
+            dataset,
+            config,
+            parameter_values=params,
+        )
 
     return _run
 

@@ -9,8 +9,9 @@ import pytest
 import xarray as xr
 
 import arc_scope.pipeline.runner as runner_module
+import arc_scope.pipeline.steps as steps_module
 from arc_scope.pipeline.config import PipelineConfig
-from arc_scope.pipeline.optimization import optimization_enabled
+from arc_scope.pipeline.optimization import OptimizationResult, optimization_enabled
 from arc_scope.pipeline.runner import ArcScopePipeline
 from arc_scope.pipeline.steps import ArcResult
 from arc_scope.weather.base import REQUIRED_WEATHER_VARS
@@ -142,6 +143,7 @@ def test_run_executes_optimization_when_optim_config_enabled(monkeypatch, tmp_pa
                     "transform": "log",
                 }
             ],
+            "optimizer": {"type": "scipy", "use_autograd_jac": False},
             "max_iter": 80,
             "tol": 1e-10,
         },
@@ -175,11 +177,11 @@ def test_run_executes_optimization_when_optim_config_enabled(monkeypatch, tmp_pa
         "prepare_scope_dataset",
         lambda post_bio, post_bio_scale, weather, observation, cfg: prepared_input.copy(deep=True),
     )
-    monkeypatch.setattr(
-        runner_module,
-        "run_scope_simulation",
-        lambda ds, cfg: xr.Dataset({"F740": ds["fqe"] * 2.0}),
-    )
+    def fake_run_scope_simulation(ds, cfg):
+        return xr.Dataset({"F740": ds["fqe"] * 2.0})
+
+    monkeypatch.setattr(runner_module, "run_scope_simulation", fake_run_scope_simulation)
+    monkeypatch.setattr(steps_module, "run_scope_simulation", fake_run_scope_simulation)
 
     result = ArcScopePipeline(config).run()
 
@@ -192,6 +194,40 @@ def test_run_executes_optimization_when_optim_config_enabled(monkeypatch, tmp_pa
     )
     np.testing.assert_allclose(result.scope_output_ds["F740"].values, 0.08, rtol=1e-2)
     assert result.scope_output_ds.attrs["arc_scope_optimization_status"] == "optimized"
+
+
+def test_run_optimization_uses_pipeline_default_scope_runners(monkeypatch):
+    """The high-level runner must not pass a lambda that disables built-in autograd."""
+    captured = {}
+    config = _make_config(scope_workflow="fluorescence", optimize=True)
+    pipeline = ArcScopePipeline(config)
+
+    def fake_run_pipeline_optimization(config, scope_input_ds, *, scope_runner=None):
+        captured["scope_runner"] = scope_runner
+        return (
+            scope_input_ds,
+            xr.Dataset({"F740": ("time", [0.08])}),
+            OptimizationResult(
+                status="optimized",
+                target_variables=["F740"],
+                initial_loss=1.0,
+                optimized_loss=0.0,
+                parameters_initial={"fqe": 0.01},
+                parameters_optimized={"fqe": 0.04},
+                optimizer="scipy:L-BFGS-B",
+                converged=True,
+            ),
+        )
+
+    monkeypatch.setattr(
+        runner_module,
+        "run_pipeline_optimization",
+        fake_run_pipeline_optimization,
+    )
+
+    pipeline.run_optimization(xr.Dataset({"fqe": ("time", [0.01])}))
+
+    assert captured["scope_runner"] is None
 
 
 def test_run_optimization_requires_observations():

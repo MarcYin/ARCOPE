@@ -130,17 +130,17 @@ def _run_sif_example() -> dict[str, Any]:
 def _run_thermal_example() -> dict[str, Any]:
     time = _example_time()
     base_ds = _base_dataset(time)
-    true_parameters = {"rss": 850.0, "rbs": 18.0}
+    true_parameters = {"Tcu": 29.5, "Tch": 26.5, "Tsu": 34.0, "Tsh": 29.0}
     observations = _add_noise(
         _thermal_proxy_runner(_inject_values(base_ds, true_parameters)),
-        {"Loutt": 0.030},
+        {"Loutt": 0.030, "Eoutt": 0.026},
     )
     config = _example_config(
         workflow="thermal",
         optim_config={
             "enabled": True,
-            "observations": observations[["Loutt"]],
-            "target_variables": ["Loutt"],
+            "observations": observations[["Loutt", "Eoutt"]],
+            "target_variables": ["Loutt", "Eoutt"],
             "parameter_preset": "thermal",
             "optimizer": "scipy",
             "max_iter": 100,
@@ -153,7 +153,7 @@ def _run_thermal_example() -> dict[str, Any]:
         workflow="thermal",
         config=config,
         base_ds=base_ds,
-        observations=observations[["Loutt"]],
+        observations=observations[["Loutt", "Eoutt"]],
         true_parameters=true_parameters,
         runner=_thermal_proxy_runner,
     )
@@ -285,14 +285,25 @@ def _sif_proxy_runner(dataset: xr.Dataset) -> xr.Dataset:
 
 
 def _thermal_proxy_runner(dataset: xr.Dataset) -> xr.Dataset:
-    rss = _scalar(dataset, "rss", 500.0)
-    rbs = _scalar(dataset, "rbs", 10.0)
+    tcu = _scalar(dataset, "Tcu", 25.0)
+    tch = _scalar(dataset, "Tch", 24.0)
+    tsu = _scalar(dataset, "Tsu", 30.0)
+    tsh = _scalar(dataset, "Tsh", 27.0)
     loutt = (
         dataset["thermal_base"]
-        + dataset["soil_sensitivity"] * (rss - 500.0)
-        + dataset["boundary_sensitivity"] * (rbs - 10.0)
+        + dataset["boundary_sensitivity"] * (tcu - 25.0)
+        + 0.20 * (tch - 24.0)
+        + dataset["soil_sensitivity"] * (tsu - 30.0)
+        + 0.35 * (tsh - 27.0)
     )
-    eoutt = 0.97 * loutt + 2.5
+    eoutt = (
+        0.97 * dataset["thermal_base"]
+        + 0.15 * (tcu - 25.0)
+        + dataset["boundary_sensitivity"] * (tch - 24.0)
+        + 0.25 * (tsu - 30.0)
+        + dataset["soil_sensitivity"] * (tsh - 27.0)
+        + 2.5
+    )
     return xr.Dataset({"Loutt": loutt, "Eoutt": eoutt}, coords={"time": dataset.coords["time"]})
 
 

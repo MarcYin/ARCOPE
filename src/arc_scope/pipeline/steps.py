@@ -6,6 +6,7 @@ pipelines or customise the data flow.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -425,6 +426,143 @@ def run_scope_simulation(
     return _apply_spatial_mask(output, spatial_valid)
 
 
+def run_scope_simulation_tensors(
+    scope_dataset: xr.Dataset,
+    config: PipelineConfig,
+    parameter_values: Mapping[str, Any] | None = None,
+) -> Mapping[str, Any]:
+    """Execute SCOPE while preserving PyTorch autograd tensors.
+
+    This path is for optimisation objectives. It deliberately avoids
+    ``ScopeGridRunner.*_dataset`` methods because upstream dataset assembly
+    detaches tensors into NumPy arrays before ARC-SCOPE can compute a loss.
+    The normal :func:`run_scope_simulation` path remains the export path for
+    xarray/NetCDF outputs after optimisation is complete.
+    """
+    try:
+        import torch
+        from scope import SimulationConfig, ScopeGridRunner, campbell_lidf
+        from scope.spectral.fluspect import FluspectModel
+    except ImportError:
+        raise ImportError(
+            "SCOPE and PyTorch are required. Install with: pip install arcope[scope]"
+        )
+
+    _patch_scope_fluspect_stacked_layers(FluspectModel, torch)
+    runner_dataset, _ = _prepare_torch_runner_dataset(scope_dataset, torch)
+    parameter_values = {} if parameter_values is None else dict(parameter_values)
+    if parameter_values:
+        runner_dataset = runner_dataset.copy()
+        for name in parameter_values:
+            if name not in runner_dataset:
+                runner_dataset[name] = 0.0
+
+    times = runner_dataset.coords["time"].values
+    start_time = pd.Timestamp(times.min())
+    end_time = pd.Timestamp(times.max())
+
+    x = runner_dataset.coords["x"].values
+    y = runner_dataset.coords["y"].values
+    roi_bounds = (float(x.min()), float(y.min()), float(x.max()), float(y.max()))
+
+    dtype_map = {"float32": torch.float32, "float64": torch.float64}
+    torch_dtype = dtype_map.get(config.dtype, torch.float64)
+    device = torch.device(config.device)
+
+    sim_config = SimulationConfig(
+        roi_bounds=roi_bounds,
+        start_time=start_time,
+        end_time=end_time,
+        device=str(device),
+        dtype=torch_dtype,
+    )
+    lidf = campbell_lidf(57.0, device=device, dtype=torch_dtype)
+    runner = ScopeGridRunner.from_scope_assets(
+        lidf=lidf,
+        device=device,
+        dtype=torch_dtype,
+        scope_root_path=config.scope_root_path,
+    )
+
+    required_vars = list(runner_dataset.data_vars)
+    data_module = _TensorScopeGridDataModule(
+        runner_dataset,
+        sim_config,
+        required_vars=required_vars,
+        torch_module=torch,
+        parameter_values=parameter_values,
+    )
+    varmap = {v: v for v in runner_dataset.data_vars}
+
+    if config.scope_workflow == "energy-balance":
+        _validate_hidden_energy_balance_inputs(runner_dataset)
+        return _run_coupled_energy_balance_tensors(
+            runner,
+            data_module,
+            varmap=varmap,
+            soil_heat_method=int(config.resolved_scope_options.get("soil_heat_method", 2)),
+        )
+
+    return _run_scope_workflow_tensors(
+        runner,
+        data_module,
+        varmap=varmap,
+        scope_options=config.resolved_scope_options,
+    )
+
+
+def _run_scope_workflow_tensors(
+    runner: Any,
+    data_module: Any,
+    *,
+    varmap: dict[str, str],
+    scope_options: Mapping[str, Any],
+) -> dict[str, Any]:
+    unsupported = [
+        name
+        for name in ("calc_directional", "calc_vert_profiles")
+        if _as_bool_option(scope_options.get(name, False))
+    ]
+    if unsupported:
+        raise RuntimeError(
+            "Differentiable SCOPE optimisation does not yet support "
+            + ", ".join(unsupported)
+            + ". Disable those options or use finite differences."
+        )
+
+    outputs = dict(runner.run(data_module, varmap=varmap))
+    if _as_bool_option(scope_options.get("calc_fluor", False)):
+        outputs.update(runner.run_layered_fluorescence(data_module, varmap=varmap))
+    if _as_bool_option(scope_options.get("calc_planck", False)):
+        outputs.update(runner.run_thermal(data_module, varmap=varmap))
+    return outputs
+
+
+def _run_coupled_energy_balance_tensors(
+    runner: Any,
+    data_module: Any,
+    *,
+    varmap: dict[str, str],
+    soil_heat_method: int,
+) -> dict[str, Any]:
+    fluorescence_output = runner.run_energy_balance_fluorescence(
+        data_module,
+        varmap=varmap,
+        soil_heat_method=soil_heat_method,
+    )
+    thermal_output = runner.run_energy_balance_thermal(
+        data_module,
+        varmap=varmap,
+        soil_heat_method=soil_heat_method,
+    )
+
+    combined = dict(thermal_output)
+    for name, value in fluorescence_output.items():
+        if name not in combined:
+            combined[name] = value
+    return combined
+
+
 def _run_coupled_energy_balance(
     runner: Any,
     data_module: Any,
@@ -495,6 +633,141 @@ def _prepare_runner_dataset(scope_dataset: xr.Dataset) -> tuple[xr.Dataset, xr.D
             continue
         runner_dataset[name] = data_array.where(np.isfinite(data_array), other=fill_value)
     return runner_dataset, spatial_valid
+
+
+def _prepare_torch_runner_dataset(
+    scope_dataset: xr.Dataset,
+    torch_module: Any,
+) -> tuple[xr.Dataset, xr.DataArray | None]:
+    """Fill execution gaps without converting torch-backed variables to NumPy."""
+    spatial_valid = _spatial_valid_mask(scope_dataset)
+    if spatial_valid is None:
+        return scope_dataset, None
+
+    runner_dataset = scope_dataset.copy(deep=True)
+    for name, data_array in runner_dataset.data_vars.items():
+        if _is_torch_dataarray(data_array, torch_module):
+            continue
+        if not _is_numeric_dataarray(data_array):
+            continue
+        if not {"y", "x"}.issubset(data_array.dims):
+            continue
+        fill_value = _fill_value_for_runner(name, data_array)
+        if fill_value is None:
+            continue
+        runner_dataset[name] = data_array.where(np.isfinite(data_array), other=fill_value)
+    return runner_dataset, spatial_valid
+
+
+class _TensorScopeGridDataModule:
+    """Minimal SCOPE grid data module that does not detach tensors."""
+
+    stack_dims = ("y", "x", "time")
+
+    def __init__(
+        self,
+        dataset: xr.Dataset,
+        config: Any,
+        *,
+        required_vars: list[str],
+        torch_module: Any,
+        parameter_values: Mapping[str, Any],
+    ) -> None:
+        self.dataset = dataset
+        self.config = config
+        self.required_vars = required_vars
+        self._torch = torch_module
+        self._parameter_values = dict(parameter_values)
+
+    def _stack_dataset(self) -> xr.Dataset:
+        missing = [var for var in self.required_vars if var not in self.dataset]
+        if missing:
+            raise KeyError(f"Dataset missing required variables: {missing}")
+        return (
+            self.dataset[self.required_vars]
+            .stack(batch=self.stack_dims)
+            .transpose("batch", ...)
+        )
+
+    def batch_size(self) -> int:
+        return int(self._stack_dataset().sizes["batch"])
+
+    def iter_batches(self):
+        stacked = self._stack_dataset()
+        total = stacked.sizes["batch"]
+        for chunk in self.config.chunks(total):
+            batch = stacked.isel(batch=chunk)
+            tensors = {}
+            for variable in self.required_vars:
+                if variable in self._parameter_values:
+                    tensors[variable] = _torch_parameter_like(
+                        batch[variable],
+                        self._parameter_values[variable],
+                        torch_module=self._torch,
+                        config=self.config,
+                    )
+                else:
+                    tensors[variable] = _to_torch_tensor_preserving_graph(
+                        batch[variable],
+                        torch_module=self._torch,
+                        config=self.config,
+                    )
+            yield tensors
+
+
+def _torch_parameter_like(
+    template: xr.DataArray,
+    value: Any,
+    *,
+    torch_module: Any,
+    config: Any,
+) -> Any:
+    """Broadcast an optimised parameter tensor to a batched SCOPE input shape."""
+    if isinstance(value, torch_module.Tensor):
+        tensor = value.to(dtype=config.dtype, device=config.torch_device())
+    else:
+        tensor = torch_module.as_tensor(
+            value,
+            dtype=config.dtype,
+            device=config.torch_device(),
+        )
+
+    shape = tuple(int(size) for size in template.shape)
+    if not shape:
+        return tensor.reshape(())
+
+    if int(tensor.numel()) == 1:
+        return tensor.reshape(()) * torch_module.ones(
+            shape,
+            dtype=config.dtype,
+            device=config.torch_device(),
+        )
+    return torch_module.broadcast_to(tensor, shape)
+
+
+def _to_torch_tensor_preserving_graph(
+    data_array: xr.DataArray,
+    *,
+    torch_module: Any,
+    config: Any,
+) -> Any:
+    """Convert an xarray variable to torch without forcing tensor data to NumPy."""
+    values = data_array.data
+    if isinstance(values, torch_module.Tensor):
+        tensor = values.to(dtype=config.dtype, device=config.torch_device())
+    else:
+        tensor = torch_module.as_tensor(
+            values,
+            dtype=config.dtype,
+            device=config.torch_device(),
+        )
+    if not tensor.isfinite().all():
+        tensor = torch_module.nan_to_num(tensor, nan=0.0)
+    return tensor
+
+
+def _is_torch_dataarray(data_array: xr.DataArray, torch_module: Any) -> bool:
+    return isinstance(data_array.data, torch_module.Tensor)
 
 
 def _spatial_valid_mask(scope_dataset: xr.Dataset) -> xr.DataArray | None:
@@ -718,6 +991,12 @@ def _constant_like(data_array: xr.DataArray, value: float) -> xr.DataArray:
 def _is_numeric_dataarray(data_array: xr.DataArray) -> bool:
     """Return whether a DataArray contains numeric values."""
     return np.issubdtype(data_array.dtype, np.number)
+
+
+def _as_bool_option(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
 
 
 def _patch_scope_fluspect_stacked_layers(fluspect_model_cls: type, torch_module: Any) -> None:

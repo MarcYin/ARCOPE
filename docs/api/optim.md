@@ -115,10 +115,16 @@ For thermal/LST optimisation:
 
 ```python
 THERMAL_OPTIMIZATION_PARAMS = ParameterSet([
-    ParameterSpec("rss", initial=500.0, lower=10.0, upper=5000.0, transform="log"),
-    ParameterSpec("rbs", initial=10.0, lower=1.0, upper=100.0, transform="log"),
+    ParameterSpec("Tcu", initial=25.0, lower=-20.0, upper=60.0, transform="identity"),
+    ParameterSpec("Tch", initial=24.0, lower=-20.0, upper=60.0, transform="identity"),
+    ParameterSpec("Tsu", initial=30.0, lower=-20.0, upper=75.0, transform="identity"),
+    ParameterSpec("Tsh", initial=27.0, lower=-20.0, upper=75.0, transform="identity"),
 ])
 ```
+
+The standalone `thermal` workflow uses prescribed canopy/soil temperatures.
+Use `ENERGY_BALANCE_OPTIMIZATION_PARAMS` when fitting resistance parameters
+such as `rss` and `rbs`.
 
 ### `ENERGY_BALANCE_OPTIMIZATION_PARAMS`
 
@@ -166,7 +172,7 @@ Objective function wrapping a SCOPE forward pass. Injects parameters into the pr
 
 **`evaluate(params)`** -- Evaluate the objective (numpy/scipy-compatible). Takes a dict of named parameter values in physical units. Returns a scalar loss value.
 
-**`evaluate_torch(params, param_tensor, param_set)`** -- Evaluate with PyTorch autograd support. Converts the unconstrained optimisation tensor through `ParameterSet`, injects the physical parameters into the SCOPE dataset, and returns a differentiable scalar loss when the `scope_runner` preserves PyTorch tensors.
+**`evaluate_torch(params, param_tensor, param_set)`** -- Evaluate with PyTorch autograd support. Converts the unconstrained optimisation tensor through `ParameterSet` and returns a differentiable scalar loss. Built-in pipeline optimisation sends the PyTorch parameter tensors to the tensor-preserving SCOPE runner instead of storing them in xarray.
 
 **`evaluate_value_and_gradient(values, param_set)`** -- Evaluate the differentiable loss and return `(loss, gradient)` in scipy's unconstrained parameter space. Raises `AutogradUnavailable` when PyTorch is missing or the forward path detached from autograd.
 
@@ -198,18 +204,19 @@ class ScipyOptimizer:
     ): ...
 ```
 
-Wrapper around `scipy.optimize.minimize`. By default it passes scipy an
-autograd-backed `jac` callable when the objective can provide one, so L-BFGS-B
-does not need finite-difference probing. If the forward path is not
-differentiable and `use_autograd_jac="auto"`, it falls back to scipy's finite
-differences for backwards compatibility.
+Wrapper around `scipy.optimize.minimize`. It passes scipy an autograd-backed
+`jac` callable when the objective can provide one, so L-BFGS-B does not need
+finite-difference probing. The standalone optimiser default remains `"auto"`
+for backwards compatibility with proxy objectives, but `ArcScopePipeline`
+defaults real built-in SCOPE optimisation runs to `"required"` and routes
+autograd evaluation through a tensor-preserving SCOPE runner.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `method` | `"L-BFGS-B"` | Scipy minimisation method. |
 | `max_iter` | `100` | Maximum iterations. |
 | `tol` | `1e-6` | Convergence tolerance. |
-| `use_autograd_jac` | `"auto"` | `"auto"` uses autograd gradients when available and falls back otherwise; `"required"` raises if autograd is unavailable; `False` disables the jac hook. |
+| `use_autograd_jac` | `"auto"` | `"auto"` uses autograd gradients when available and falls back otherwise; `"required"` raises if autograd is unavailable; `False` disables the jac hook. Use `"required"` for production SCOPE optimisation. |
 
 **`step(objective, params)`** runs a full scipy minimisation from the current parameter values and updates the specs with optimised values.
 

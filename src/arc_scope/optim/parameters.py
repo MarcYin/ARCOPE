@@ -218,8 +218,10 @@ SIF_OPTIMIZATION_PARAMS = ParameterSet([
 ])
 
 THERMAL_OPTIMIZATION_PARAMS = ParameterSet([
-    ParameterSpec("rss", initial=500.0, lower=10.0, upper=5000.0, transform="log"),
-    ParameterSpec("rbs", initial=10.0, lower=1.0, upper=100.0, transform="log"),
+    ParameterSpec("Tcu", initial=25.0, lower=-20.0, upper=60.0, transform="identity"),
+    ParameterSpec("Tch", initial=24.0, lower=-20.0, upper=60.0, transform="identity"),
+    ParameterSpec("Tsu", initial=30.0, lower=-20.0, upper=75.0, transform="identity"),
+    ParameterSpec("Tsh", initial=27.0, lower=-20.0, upper=75.0, transform="identity"),
 ])
 
 ENERGY_BALANCE_OPTIMIZATION_PARAMS = ParameterSet([

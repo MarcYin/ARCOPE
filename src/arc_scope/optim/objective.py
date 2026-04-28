@@ -37,6 +37,11 @@ class ScopeObjective:
         A callable that takes a dataset and returns SCOPE outputs.
         If ``None``, uses the default ``run_scope_simulation`` with a
         minimal config.
+    torch_scope_runner:
+        Optional callable used only by autograd evaluations. It receives the
+        base dataset and the named PyTorch parameter tensors, and should return
+        SCOPE outputs as torch tensors or torch-backed xarray variables without
+        converting through NumPy.
     config:
         Pipeline configuration for SCOPE execution.
     """
@@ -48,6 +53,7 @@ class ScopeObjective:
         target_variables: Sequence[str],
         loss_fn: Callable | None = None,
         scope_runner: Callable | None = None,
+        torch_scope_runner: Callable | None = None,
         config: Any = None,
     ):
         self._base_dataset = base_dataset
@@ -55,6 +61,7 @@ class ScopeObjective:
         self._target_variables = list(target_variables)
         self._loss_fn = loss_fn or _mse_loss
         self._scope_runner = scope_runner
+        self._torch_scope_runner = torch_scope_runner
         self._config = config
 
     def evaluate(self, params: dict[str, float]) -> float:
@@ -198,6 +205,12 @@ class ScopeObjective:
 
         return run_scope_simulation(dataset, self._config)
 
+    def _run_scope_torch(self, dataset: xr.Dataset, params: dict[str, Any]) -> Any:
+        """Execute the differentiable SCOPE simulation path."""
+        if self._torch_scope_runner is not None:
+            return self._torch_scope_runner(dataset, params)
+        return self._run_scope(self._inject_params(params))
+
     def _evaluate_torch_params(
         self,
         params: dict[str, Any],
@@ -206,8 +219,7 @@ class ScopeObjective:
         dtype: Any,
         device: Any,
     ) -> Any:
-        ds = self._inject_params(params)
-        output = self._run_scope(ds)
+        output = self._run_scope_torch(self._base_dataset, params)
         return self._torch_loss(
             output,
             torch=torch,
@@ -228,7 +240,7 @@ class ScopeObjective:
 
     def _torch_loss(
         self,
-        output: xr.Dataset,
+        output: Any,
         *,
         torch: Any,
         dtype: Any,

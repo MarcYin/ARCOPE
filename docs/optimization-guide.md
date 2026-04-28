@@ -84,7 +84,7 @@ If `parameters` is omitted, ARC-SCOPE uses a workflow default:
 | Workflow | Default parameters | Typical observation target |
 |----------|--------------------|----------------------------|
 | `fluorescence` | `fqe` | SIF, e.g. `F740` or `F685` |
-| `thermal` | `rss`, `rbs` | thermal output, e.g. `Loutt` or `Lot_` |
+| `thermal` | `Tcu`, `Tch`, `Tsu`, `Tsh` | thermal output, e.g. `Loutt` or `Lot_` |
 | `energy-balance` | `fqe`, `rss`, `rbs`, `Cd`, `rwc` | mixed SIF, thermal, and flux outputs |
 
 You can override the defaults with explicit parameter specs:
@@ -120,29 +120,62 @@ input dataset.
 
 ## Scipy Gradients
 
-The default scipy optimiser still uses robust `L-BFGS-B`, but it now passes a
-`jac` callable when autograd is available. With a PyTorch-differentiable SCOPE
-forward path, that jacobian is computed by one backward pass in the
-unconstrained parameter space instead of scipy probing each parameter with
-finite differences.
+For real `ArcScopePipeline` SCOPE runs, scipy optimisation now uses a
+tensor-preserving SCOPE objective path by default. The optimiser still uses
+robust `L-BFGS-B`, but its `jac` callable is computed by one PyTorch backward
+pass in the unconstrained parameter space instead of scipy probing each
+parameter with finite differences.
 
 ```python
 "optimizer": {
     "type": "scipy",
     "method": "L-BFGS-B",
-    "use_autograd_jac": "auto",
+    "use_autograd_jac": "required",
 }
 ```
 
 `use_autograd_jac` options:
 
-- `"auto"`: use autograd when the forward path is differentiable; otherwise fall back to scipy finite differences.
-- `"required"`: raise if autograd is unavailable or the forward path detached.
+- `"required"`: use the tensor-preserving SCOPE objective and raise if autograd is unavailable or the forward path detached. This is the production default for `ArcScopePipeline` runs that use the built-in SCOPE runner.
+- `"auto"`: use autograd when the forward path is differentiable; otherwise fall back to scipy finite differences. This is intended for proxy examples, custom numpy-only runners, and exploratory compatibility checks.
 - `False`: disable the jacobian hook and use scipy's finite-difference path.
 
-For proxy examples or other numpy-only runners, `"auto"` preserves the old
-behaviour. For production SCOPE runs where you expect differentiability, use
-`"required"` during validation so detached variables are caught early.
+The differentiable path calls SCOPE's raw tensor-returning workflow methods
+(`run`, `run_layered_fluorescence`, `run_thermal`, and coupled
+energy-balance tensor methods) and computes the loss before xarray/NetCDF
+assembly. The normal dataset runner is still used for initial/final reported
+outputs, but not for autograd gradient evaluation because upstream dataset
+assembly detaches tensors for export.
+
+## Upstream SCOPE Differentiability Requirements
+
+ARC-SCOPE can only compute real gradients for target variables whose SCOPE
+forward path remains connected to the optimised PyTorch tensors. The upstream
+SCOPE code path used during `use_autograd_jac="required"` must satisfy these
+requirements:
+
+- Inputs consumed by the SCOPE solver are `torch.Tensor` objects on the
+  configured dtype/device.
+- Optimised variables are not converted through `xarray.DataArray.values`,
+  `np.asarray`, `.detach()`, `.cpu().numpy()`, or Python `float()` before the
+  loss is computed.
+- Workflow methods return raw `torch.Tensor` outputs for the configured target
+  variables. xarray/NetCDF assembly happens only after optimisation, for the
+  reported final run.
+- Tensor-dependent branching uses differentiable torch operations such as
+  `torch.where`, masks, and tensor reductions. Parameter-dependent `.item()`
+  branches break the graph.
+- Constants and default values used with tensors are created with torch on the
+  same dtype/device, not as NumPy arrays that force implicit conversion.
+- Iterative solvers avoid in-place tensor updates that invalidate autograd.
+- The selected `target_variables` actually depend on the selected parameters.
+  For example, standalone `thermal` depends on `Tcu`, `Tch`, `Tsu`, and `Tsh`;
+  `rss` and `rbs` affect the coupled `energy-balance` branch, not the
+  prescribed-temperature thermal branch.
+
+If any of these conditions fail, `"required"` raises instead of silently
+publishing an unoptimised or finite-difference-only run. Use `"auto"` only when
+you deliberately want compatibility fallback for custom or proxy runners.
 
 ## Generated Example Artifacts
 
@@ -208,7 +241,11 @@ config = PipelineConfig(
                 "transform": "log",
             }
         ],
-        "optimizer": {"type": "scipy", "method": "L-BFGS-B"},
+        "optimizer": {
+            "type": "scipy",
+            "method": "L-BFGS-B",
+            "use_autograd_jac": "required",
+        },
         "max_iter": 50,
         "tol": 1e-6,
     },
@@ -237,10 +274,13 @@ Interpretation:
 - `optimized_loss < initial_loss`, so the fitted SCOPE output is closer to the observations under the configured MSE objective.
 - The final `result.scope_output_ds` is the SCOPE run with the fitted `fqe`, not the original forward simulation.
 
-## Example 2: Fit Thermal Outputs by Tuning Soil Resistances
+## Example 2: Fit Standalone Thermal Outputs by Tuning Prescribed Temperatures
 
 Use this when the target is thermal radiance or a thermal product derived from
-the thermal workflow. The default thermal preset tunes `rss` and `rbs`.
+the standalone `thermal` workflow. This workflow uses prescribed sunlit/shaded
+canopy and soil temperatures, so the default thermal preset tunes `Tcu`, `Tch`,
+`Tsu`, and `Tsh`. Use the coupled `energy-balance` workflow when you want to
+fit soil and aerodynamic resistance parameters such as `rss` and `rbs`.
 
 ```python
 config = PipelineConfig(
@@ -255,9 +295,13 @@ config = PipelineConfig(
     optim_config={
         "enabled": True,
         "observations_path": "observed_thermal.nc",
-        "target_variables": ["Loutt"],
+        "target_variables": ["Loutt", "Eoutt"],
         "parameter_preset": "thermal",
-        "optimizer": "scipy",
+        "optimizer": {
+            "type": "scipy",
+            "method": "L-BFGS-B",
+            "use_autograd_jac": "required",
+        },
         "max_iter": 80,
         "tol": 1e-6,
     },
@@ -271,22 +315,22 @@ Generated output from `docs/assets/optimization/summary.json`:
 
 ```python
 fit.parameters_initial
-# {'rss': 500.0, 'rbs': 10.0}
+# {'Tcu': 25.0, 'Tch': 24.0, 'Tsu': 30.0, 'Tsh': 27.0}
 
 fit.parameters_optimized
-# {'rss': 838.5037, 'rbs': 18.6914}
+# {'Tcu': 30.3910, 'Tch': 27.1240, 'Tsu': 33.3146, 'Tsh': 28.4856}
 
 fit.initial_loss, fit.optimized_loss
-# (3.557060, 0.000168)
+# (5.695558, 0.000356)
 ```
 
 ![Generated thermal optimisation fit](assets/optimization/thermal_fit.svg)
 
 Interpretation:
 
-- Higher `rss` means the fitted run needed greater soil surface resistance than the default.
-- Higher `rbs` means the fitted run needed stronger boundary-layer resistance.
-- These values are calibration parameters for the configured observations and period. They are not direct ARC retrieval products.
+- `Tcu` and `Tch` are the prescribed sunlit and shaded canopy temperatures used by SCOPE thermal radiance.
+- `Tsu` and `Tsh` are the prescribed sunlit and shaded soil temperatures.
+- These values are calibration parameters for the configured observations and period. They are not ARC retrieval products, and they replace the diagnostic thermal state for the optimised final run.
 
 If your SCOPE output uses a different thermal variable name, change
 `target_variables`. Common candidates are `Loutt`, `Lot_`, `Eoutt`, or a
@@ -319,7 +363,11 @@ config = PipelineConfig(
         "observations_path": "observed_energy_balance.nc",
         "target_variables": ["F740", "Loutt", "LE"],
         "parameter_preset": "energy-balance",
-        "optimizer": {"type": "scipy", "method": "L-BFGS-B"},
+        "optimizer": {
+            "type": "scipy",
+            "method": "L-BFGS-B",
+            "use_autograd_jac": "required",
+        },
         "max_iter": 120,
         "tol": 1e-6,
     },

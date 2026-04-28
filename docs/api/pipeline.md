@@ -125,18 +125,20 @@ PipelineConfig(
         "optimizer": {
             "type": "scipy",
             "method": "L-BFGS-B",
-            "use_autograd_jac": "auto",
+            "use_autograd_jac": "required",
         },
         "max_iter": 50,
     },
 )
 ```
 
-If `parameters` is omitted, ARC-SCOPE chooses a workflow default: `fqe` for fluorescence, `rss`/`rbs` for thermal, and the energy-balance preset for `energy-balance`.
-For scipy, `use_autograd_jac` defaults to `"auto"`: ARC-SCOPE provides an
-autograd-backed jacobian when the SCOPE forward path remains differentiable and
-falls back to scipy finite differences otherwise. Set it to `"required"` to
-fail instead of falling back, or `False` to disable the jacobian hook.
+If `parameters` is omitted, ARC-SCOPE chooses a workflow default: `fqe` for fluorescence, prescribed temperature variables (`Tcu`, `Tch`, `Tsu`, `Tsh`) for standalone thermal, and the energy-balance preset for `energy-balance`.
+For real built-in SCOPE runs, `use_autograd_jac` defaults to `"required"`:
+ARC-SCOPE evaluates gradients through a tensor-preserving SCOPE objective path
+and fails if the graph detaches. When you provide a custom proxy `scope_runner`,
+the compatibility default is `"auto"` so numpy-only examples can still run.
+Set `use_autograd_jac=False` only when you explicitly want scipy finite
+differences.
 
 ### Properties
 
