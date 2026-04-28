@@ -69,6 +69,28 @@ class ParameterSpec:
             return self.lower + p * (self.upper - self.lower)
         raise ValueError(f"Unknown transform: {self.transform}")
 
+    def to_physical_torch(self, unconstrained):
+        """Map an unconstrained torch scalar back to physical units."""
+        import torch
+
+        lower = torch.as_tensor(
+            self.lower,
+            dtype=unconstrained.dtype,
+            device=unconstrained.device,
+        )
+        upper = torch.as_tensor(
+            self.upper,
+            dtype=unconstrained.dtype,
+            device=unconstrained.device,
+        )
+        if self.transform == "identity":
+            return torch.clamp(unconstrained, min=lower, max=upper)
+        elif self.transform == "log":
+            return torch.clamp(torch.exp(unconstrained), min=lower, max=upper)
+        elif self.transform == "logit":
+            return lower + torch.sigmoid(unconstrained) * (upper - lower)
+        raise ValueError(f"Unknown transform: {self.transform}")
+
 
 @dataclass
 class ParameterSet:
@@ -110,6 +132,32 @@ class ParameterSet:
             result[spec.name] = spec.to_physical(float(val))
         for spec in self.fixed:
             result[spec.name] = spec.initial
+        return result
+
+    def from_torch(self, values) -> dict[str, object]:
+        """Convert unconstrained torch values to named physical values."""
+        try:
+            import torch
+        except ImportError:
+            raise ImportError("PyTorch required for gradient-based optimisation")
+
+        if values.ndim != 1:
+            values = values.reshape(-1)
+        opt_specs = self.optimizable
+        if int(values.numel()) != len(opt_specs):
+            raise ValueError(
+                f"Expected {len(opt_specs)} values, got {int(values.numel())}"
+            )
+
+        result: dict[str, object] = {}
+        for i, spec in enumerate(opt_specs):
+            result[spec.name] = spec.to_physical_torch(values[i])
+        for spec in self.fixed:
+            result[spec.name] = torch.as_tensor(
+                spec.initial,
+                dtype=values.dtype,
+                device=values.device,
+            )
         return result
 
     def to_torch(self, device: str = "cpu", dtype: str = "float64"):

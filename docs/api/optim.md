@@ -166,7 +166,13 @@ Objective function wrapping a SCOPE forward pass. Injects parameters into the pr
 
 **`evaluate(params)`** -- Evaluate the objective (numpy/scipy-compatible). Takes a dict of named parameter values in physical units. Returns a scalar loss value.
 
-**`evaluate_torch(params, param_tensor, param_set)`** -- Evaluate with PyTorch autograd support. Currently wraps `evaluate()` with a surrogate gradient.
+**`evaluate_torch(params, param_tensor, param_set)`** -- Evaluate with PyTorch autograd support. Converts the unconstrained optimisation tensor through `ParameterSet`, injects the physical parameters into the SCOPE dataset, and returns a differentiable scalar loss when the `scope_runner` preserves PyTorch tensors.
+
+**`evaluate_value_and_gradient(values, param_set)`** -- Evaluate the differentiable loss and return `(loss, gradient)` in scipy's unconstrained parameter space. Raises `AutogradUnavailable` when PyTorch is missing or the forward path detached from autograd.
+
+`AutogradUnavailable` is exported from `arc_scope.optim` for callers that set
+`use_autograd_jac="required"` and want to handle detached/non-differentiable
+forward paths explicitly.
 
 ## `Optimizer` Protocol
 
@@ -188,16 +194,22 @@ class ScipyOptimizer:
         method: str = "L-BFGS-B",
         max_iter: int = 100,
         tol: float = 1e-6,
+        use_autograd_jac: bool | str = "auto",
     ): ...
 ```
 
-Wrapper around `scipy.optimize.minimize` for gradient-free optimisation.
+Wrapper around `scipy.optimize.minimize`. By default it passes scipy an
+autograd-backed `jac` callable when the objective can provide one, so L-BFGS-B
+does not need finite-difference probing. If the forward path is not
+differentiable and `use_autograd_jac="auto"`, it falls back to scipy's finite
+differences for backwards compatibility.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `method` | `"L-BFGS-B"` | Scipy minimisation method. |
 | `max_iter` | `100` | Maximum iterations. |
 | `tol` | `1e-6` | Convergence tolerance. |
+| `use_autograd_jac` | `"auto"` | `"auto"` uses autograd gradients when available and falls back otherwise; `"required"` raises if autograd is unavailable; `False` disables the jac hook. |
 
 **`step(objective, params)`** runs a full scipy minimisation from the current parameter values and updates the specs with optimised values.
 

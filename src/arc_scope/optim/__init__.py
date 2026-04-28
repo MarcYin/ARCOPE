@@ -6,6 +6,15 @@ flux data.  ARC-retrieved biophysical parameters are held fixed while
 the optimiser adjusts parameters that cannot be retrieved from reflectance.
 """
 
+from arc_scope.optim.objective import AutogradUnavailable, ScopeObjective
 from arc_scope.optim.parameters import ParameterSet, ParameterSpec
+from arc_scope.optim.protocols import ScipyOptimizer, TorchOptimizer
 
-__all__ = ["ParameterSet", "ParameterSpec"]
+__all__ = [
+    "AutogradUnavailable",
+    "ParameterSet",
+    "ParameterSpec",
+    "ScopeObjective",
+    "ScipyOptimizer",
+    "TorchOptimizer",
+]

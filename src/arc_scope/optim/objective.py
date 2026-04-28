@@ -15,6 +15,10 @@ import xarray as xr
 from arc_scope.optim.parameters import ParameterSet
 
 
+class AutogradUnavailable(RuntimeError):
+    """Raised when an objective cannot provide an autograd gradient."""
+
+
 class ScopeObjective:
     """Objective function wrapping a SCOPE forward pass.
 
@@ -117,9 +121,9 @@ class ScopeObjective:
     ) -> Any:
         """Evaluate with PyTorch autograd support.
 
-        This is a placeholder for full differentiable SCOPE integration.
-        For now, it wraps :meth:`evaluate` and creates a surrogate gradient
-        via finite differences.
+        This path keeps the parameter transform and objective framing in
+        ARC-SCOPE while allowing a PyTorch-backed SCOPE forward pass to
+        contribute gradients to scipy optimisers.
 
         Parameters
         ----------
@@ -136,12 +140,54 @@ class ScopeObjective:
         """
         import torch
 
-        loss_val = self.evaluate(params)
-        # Create a differentiable surrogate: loss * sum(params) / sum(params)
-        # This is a workaround; full differentiability requires SCOPE's
-        # require_grad=True mode
-        surrogate = torch.tensor(loss_val, dtype=param_tensor.dtype)
-        return surrogate
+        torch_params = param_set.from_torch(param_tensor)
+        loss = self._evaluate_torch_params(
+            torch_params,
+            torch=torch,
+            dtype=param_tensor.dtype,
+            device=param_tensor.device,
+        )
+        if not bool(getattr(loss, "requires_grad", False)):
+            raise AutogradUnavailable(
+                "Objective loss is not connected to the optimisation tensor. "
+                "Use a PyTorch-backed scope_runner and differentiable loss."
+            )
+        return loss
+
+    def evaluate_value_and_gradient(
+        self,
+        values: np.ndarray,
+        param_set: ParameterSet,
+    ) -> tuple[float, np.ndarray]:
+        """Evaluate loss and autograd gradient in unconstrained parameter space."""
+        try:
+            import torch
+        except ImportError as exc:
+            raise AutogradUnavailable(
+                "PyTorch is required for scipy autograd gradients."
+            ) from exc
+
+        tensor = torch.tensor(
+            np.asarray(values, dtype=np.float64),
+            dtype=torch.float64,
+            requires_grad=True,
+        )
+        try:
+            loss = self.evaluate_torch({}, tensor, param_set)
+        except AutogradUnavailable:
+            raise
+        except (AttributeError, RuntimeError, TypeError) as exc:
+            raise AutogradUnavailable(
+                "Autograd objective evaluation failed. Falling back to scipy "
+                "finite differences is allowed when ScipyOptimizer uses "
+                "use_autograd_jac='auto'."
+            ) from exc
+
+        loss.backward()
+        if tensor.grad is None:
+            raise AutogradUnavailable("Autograd did not produce a parameter gradient.")
+        gradient = tensor.grad.detach().cpu().numpy().astype(np.float64, copy=False)
+        return float(loss.detach().cpu().item()), gradient
 
     def _run_scope(self, dataset: xr.Dataset) -> xr.Dataset:
         """Execute the SCOPE simulation."""
@@ -152,7 +198,120 @@ class ScopeObjective:
 
         return run_scope_simulation(dataset, self._config)
 
+    def _evaluate_torch_params(
+        self,
+        params: dict[str, Any],
+        *,
+        torch: Any,
+        dtype: Any,
+        device: Any,
+    ) -> Any:
+        ds = self._inject_params(params)
+        output = self._run_scope(ds)
+        return self._torch_loss(
+            output,
+            torch=torch,
+            dtype=dtype,
+            device=device,
+        )
+
+    def _inject_params(self, params: dict[str, Any]) -> xr.Dataset:
+        ds = self._base_dataset.copy(deep=True)
+        for name, val in params.items():
+            if _is_torch_tensor(val):
+                ds[name] = _torch_dataarray_like(ds.get(name), val)
+            elif name in ds:
+                ds[name] = ds[name] * 0 + val
+            else:
+                ds[name] = val
+        return ds
+
+    def _torch_loss(
+        self,
+        output: xr.Dataset,
+        *,
+        torch: Any,
+        dtype: Any,
+        device: Any,
+    ) -> Any:
+        missing_from_output = [var for var in self._target_variables if var not in output]
+        if missing_from_output:
+            raise ValueError(
+                "SCOPE output is missing target variables: "
+                + ", ".join(missing_from_output)
+            )
+        missing_from_observations = [
+            var for var in self._target_variables if var not in self._observations
+        ]
+        if missing_from_observations:
+            raise ValueError(
+                "Observations are missing target variables: "
+                + ", ".join(missing_from_observations)
+            )
+
+        total_loss = None
+        compared = False
+        for var in self._target_variables:
+            pred = _as_torch_tensor(output[var], torch=torch, dtype=dtype, device=device)
+            obs = _as_torch_tensor(
+                self._observations[var],
+                torch=torch,
+                dtype=dtype,
+                device=device,
+            )
+            pred = pred.reshape(-1)
+            obs = obs.reshape(-1)
+            n = min(int(pred.numel()), int(obs.numel()))
+            mask = torch.isfinite(pred[:n]) & torch.isfinite(obs[:n])
+            if bool(mask.any().detach().cpu().item()):
+                compared = True
+                pred_valid = pred[:n][mask]
+                obs_valid = obs[:n][mask]
+                loss = self._torch_target_loss(pred_valid, obs_valid, torch=torch)
+                total_loss = loss if total_loss is None else total_loss + loss
+
+        if not compared or total_loss is None:
+            raise ValueError("Objective has no finite prediction/observation pairs.")
+        return total_loss
+
+    def _torch_target_loss(self, predicted: Any, observed: Any, *, torch: Any) -> Any:
+        if self._loss_fn is _mse_loss:
+            return torch.mean((predicted - observed) ** 2)
+        loss = self._loss_fn(predicted, observed)
+        if _is_torch_tensor(loss):
+            return loss
+        return torch.as_tensor(loss, dtype=predicted.dtype, device=predicted.device)
+
 
 def _mse_loss(predicted: np.ndarray, observed: np.ndarray) -> float:
     """Mean squared error."""
     return float(np.mean((predicted - observed) ** 2))
+
+
+def _is_torch_tensor(value: Any) -> bool:
+    return value.__class__.__module__.startswith("torch") and value.__class__.__name__ == "Tensor"
+
+
+def _torch_dataarray_like(template: xr.DataArray | None, value: Any) -> xr.DataArray:
+    if template is None:
+        return xr.DataArray(value.reshape(()))
+    shape = tuple(template.shape)
+    if shape:
+        data = value * value.new_ones(shape)
+    else:
+        data = value.reshape(())
+    return xr.DataArray(
+        data,
+        dims=template.dims,
+        coords=template.coords,
+        attrs=template.attrs,
+        name=template.name,
+    )
+
+
+def _as_torch_tensor(value: Any, *, torch: Any, dtype: Any, device: Any) -> Any:
+    if isinstance(value, xr.DataArray):
+        value = value.data
+    if _is_torch_tensor(value):
+        return value.to(dtype=dtype, device=device)
+    return torch.as_tensor(np.asarray(value), dtype=dtype, device=device)

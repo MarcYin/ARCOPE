@@ -122,13 +122,21 @@ PipelineConfig(
                 "transform": "log",
             }
         ],
-        "optimizer": "scipy",
+        "optimizer": {
+            "type": "scipy",
+            "method": "L-BFGS-B",
+            "use_autograd_jac": "auto",
+        },
         "max_iter": 50,
     },
 )
 ```
 
 If `parameters` is omitted, ARC-SCOPE chooses a workflow default: `fqe` for fluorescence, `rss`/`rbs` for thermal, and the energy-balance preset for `energy-balance`.
+For scipy, `use_autograd_jac` defaults to `"auto"`: ARC-SCOPE provides an
+autograd-backed jacobian when the SCOPE forward path remains differentiable and
+falls back to scipy finite differences otherwise. Set it to `"required"` to
+fail instead of falling back, or `False` to disable the jacobian hook.
 
 ### Properties
 

@@ -6,6 +6,13 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-04-28
+
+### Added
+- `ScipyOptimizer` now supplies an autograd-backed `jac` callable to scipy when
+  the objective can provide PyTorch gradients, avoiding finite-difference
+  parameter probing for differentiable SCOPE runs.
+
 ## [0.1.1] - 2026-04-27
 
 ### Added
@@ -81,6 +88,7 @@ All notable changes to arcope are documented here. This project follows
 - **CI**: GitHub Actions for tests (Python 3.9-3.14), docs build + deploy,
   and PyPI release via OIDC trusted publishing.
 
-[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/MarcYin/ARCOPE/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/MarcYin/ARCOPE/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/MarcYin/ARCOPE/releases/tag/v0.1.0

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Callable, Protocol, runtime_checkable
 
 import numpy as np
 
+from arc_scope.optim.objective import AutogradUnavailable
 from arc_scope.optim.parameters import ParameterSet
 
 if TYPE_CHECKING:
@@ -47,7 +48,7 @@ class Optimizer(Protocol):
 
 
 class ScipyOptimizer:
-    """Wrapper around ``scipy.optimize.minimize`` for gradient-free optimisation.
+    """Wrapper around ``scipy.optimize.minimize`` for SCOPE optimisation.
 
     Parameters
     ----------
@@ -57,6 +58,11 @@ class ScipyOptimizer:
         Maximum number of iterations.
     tol:
         Convergence tolerance.
+    use_autograd_jac:
+        ``"auto"`` uses an autograd-backed ``jac`` callable when the objective
+        can provide one and falls back to scipy finite differences otherwise.
+        ``"required"`` raises if autograd is unavailable. ``False`` preserves
+        scipy's finite-difference behaviour.
     """
 
     def __init__(
@@ -64,12 +70,16 @@ class ScipyOptimizer:
         method: str = "L-BFGS-B",
         max_iter: int = 100,
         tol: float = 1e-6,
+        use_autograd_jac: bool | str = "auto",
     ):
         self._method = method
         self._max_iter = max_iter
         self._tol = tol
+        self._use_autograd_jac = use_autograd_jac
         self._converged = False
         self._n_iter = 0
+        self._used_autograd_jac = False
+        self._autograd_jac_error: str | None = None
 
     def step(self, objective: ScopeObjective, params: ParameterSet) -> ParameterSet:
         """Run scipy minimisation from the current parameter values."""
@@ -81,13 +91,28 @@ class ScipyOptimizer:
             named = params.from_array(x)
             return float(objective.evaluate(named))
 
-        result = minimize(
-            _obj,
-            x0,
-            method=self._method,
-            options={"maxiter": self._max_iter},
-            tol=self._tol,
-        )
+        jac = self._build_jac(objective, params)
+        try:
+            result = minimize(
+                _obj,
+                x0,
+                method=self._method,
+                jac=jac,
+                options={"maxiter": self._max_iter},
+                tol=self._tol,
+            )
+        except AutogradUnavailable as exc:
+            if self._autograd_required:
+                raise
+            self._used_autograd_jac = False
+            self._autograd_jac_error = str(exc)
+            result = minimize(
+                _obj,
+                x0,
+                method=self._method,
+                options={"maxiter": self._max_iter},
+                tol=self._tol,
+            )
 
         self._converged = result.success
         self._n_iter += result.nit
@@ -99,6 +124,54 @@ class ScipyOptimizer:
                 spec.initial = optimised[spec.name]
 
         return params
+
+    def _build_jac(
+        self,
+        objective: ScopeObjective,
+        params: ParameterSet,
+    ) -> Callable[[np.ndarray], np.ndarray] | None:
+        if self._autograd_disabled:
+            return None
+
+        def _jac(x: np.ndarray) -> np.ndarray:
+            try:
+                _, gradient = objective.evaluate_value_and_gradient(x, params)
+            except AttributeError as exc:
+                raise AutogradUnavailable(
+                    "Objective does not provide evaluate_value_and_gradient()."
+                ) from exc
+            self._used_autograd_jac = True
+            return gradient
+
+        return _jac
+
+    @property
+    def _autograd_disabled(self) -> bool:
+        if self._use_autograd_jac is False:
+            return True
+        return str(self._use_autograd_jac).lower() in {
+            "0",
+            "false",
+            "no",
+            "off",
+            "disable",
+            "disabled",
+            "none",
+        }
+
+    @property
+    def _autograd_required(self) -> bool:
+        return str(self._use_autograd_jac).lower() in {"required", "require", "true"}
+
+    @property
+    def used_autograd_jac(self) -> bool:
+        """Whether the most recent scipy run used an autograd jacobian."""
+        return self._used_autograd_jac
+
+    @property
+    def autograd_jac_error(self) -> str | None:
+        """Reason autograd jacobian setup failed when auto fallback was used."""
+        return self._autograd_jac_error
 
     def converged(self) -> bool:
         return self._converged

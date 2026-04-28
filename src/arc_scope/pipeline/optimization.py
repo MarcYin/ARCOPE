@@ -329,7 +329,26 @@ def _build_optimizer(optim_config: Mapping[str, Any]) -> tuple[Optimizer, str]:
         or 100
     )
     tol = float(optim_config.get("tol") or optimizer_options.get("tol") or 1e-6)
-    return ScipyOptimizer(method=method, max_iter=max_iter, tol=tol), f"scipy:{method}"
+    use_autograd_jac = (
+        optim_config.get("use_autograd_jac")
+        if "use_autograd_jac" in optim_config
+        else optim_config.get(
+            "autograd_jac",
+            optimizer_options.get(
+                "use_autograd_jac",
+                optimizer_options.get("autograd_jac", "auto"),
+            ),
+        )
+    )
+    return (
+        ScipyOptimizer(
+            method=method,
+            max_iter=max_iter,
+            tol=tol,
+            use_autograd_jac=use_autograd_jac,
+        ),
+        f"scipy:{method}",
+    )
 
 
 def _parameter_values(parameter_set: ParameterSet) -> dict[str, float]:
