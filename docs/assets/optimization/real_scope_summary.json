@@ -1,0 +1,76 @@
+{
+  "baseline_real_F740_mean_first4": 0.21395820379257202,
+  "converged": true,
+  "fresh_arc_scope_forward_seconds": 25.879744052886963,
+  "initial_loss": 0.04591071605682373,
+  "initial_mean_F740": 0.21395820379257202,
+  "observation_mean_F740": 0.4770224690437317,
+  "optimization_seconds": 5.526104927062988,
+  "optimized_loss": 0.0,
+  "optimized_mean_F740": 0.4770224690437317,
+  "optimizer": "scipy:L-BFGS-B",
+  "output_attrs": {
+    "arc_scope_optimization_converged": "true",
+    "arc_scope_optimization_initial_loss": 0.04591071605682373,
+    "arc_scope_optimization_optimized_loss": 0.0,
+    "arc_scope_optimization_optimizer": "scipy:L-BFGS-B",
+    "arc_scope_optimization_parameters_initial": "{\"fqe\": 0.01}",
+    "arc_scope_optimization_parameters_optimized": "{\"fqe\": 0.017999999821379092}",
+    "arc_scope_optimization_status": "optimized",
+    "arc_scope_optimization_targets": "F740"
+  },
+  "parameters_initial": {
+    "fqe": 0.01
+  },
+  "parameters_optimized": {
+    "fqe": 0.017999999821379092
+  },
+  "runtime": {
+    "package_versions": {
+      "arc_scope": "unknown",
+      "matplotlib": "3.10.8",
+      "numpy": "2.4.3",
+      "pandas": "3.0.2",
+      "platform": "macOS-26.2-arm64-arm-64bit",
+      "python": "3.11.15",
+      "xarray": "2026.4.0"
+    },
+    "requirements": {
+      "arc": "available",
+      "cdsapi": "not-required",
+      "eof": "available",
+      "osgeo": "available",
+      "scope": "available",
+      "scope_root": "available",
+      "torch": "available"
+    },
+    "scope_root": "upstream/SCOPE"
+  },
+  "scope_input_dims": {
+    "excitation_wavelength": 71,
+    "time": 4,
+    "wavelength": 2001,
+    "x": 2,
+    "y": 2
+  },
+  "simulation_subset": {
+    "applied": true,
+    "full_field_shape": [
+      45,
+      23
+    ],
+    "requested_size": 2,
+    "size_x": 2,
+    "size_y": 2,
+    "total_pixels_in_window": 4,
+    "valid_pixels_in_window": 4,
+    "x_start": 6,
+    "x_stop": 8,
+    "y_start": 1,
+    "y_stop": 3
+  },
+  "tensor_runner_calls": 8,
+  "true_parameters": {
+    "fqe": 0.018
+  }
+}

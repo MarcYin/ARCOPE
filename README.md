@@ -147,19 +147,40 @@ result = pipeline.run()
 
 ### 5. Parameter optimisation
 
-Optimise SCOPE parameters (e.g., fluorescence quantum efficiency) against observations:
+Optimise SCOPE parameters (e.g., fluorescence quantum efficiency) against
+observations. The high-level pipeline can run the optimisation branch directly
+when `optim_config` provides observations and target variables:
 
 ```python
-from arc_scope.optim.parameters import ParameterSet, ParameterSpec
-from arc_scope.optim.protocols import ScipyOptimizer
-from arc_scope.optim.objective import ScopeObjective
+from arc_scope.pipeline import ArcScopePipeline, PipelineConfig
 
-params = ParameterSet([
-    ParameterSpec("fqe", initial=0.01, lower=0.001, upper=0.1, transform="log"),
-])
-optimizer = ScipyOptimizer(method="L-BFGS-B", max_iter=50)
-optimised = optimizer.step(objective, params)
+config = PipelineConfig(
+    geojson_path="field.geojson",
+    start_date="2021-05-15",
+    end_date="2021-10-01",
+    crop_type="wheat",
+    start_of_season=170,
+    year=2021,
+    scope_workflow="fluorescence",
+    scope_root_path="./upstream/SCOPE",
+    optim_config={
+        "enabled": True,
+        "observations_path": "observed_f740.nc",
+        "target_variables": ["F740"],
+        "parameters": [
+            {"name": "fqe", "initial": 0.01, "lower": 0.001, "upper": 0.1, "transform": "log"}
+        ],
+        "optimizer": {"type": "scipy", "method": "L-BFGS-B", "use_autograd_jac": "required"},
+    },
+)
+
+result = ArcScopePipeline(config).run()
+print(result.optimization_result.parameters_optimized)
 ```
+
+The [Optimization Guide](docs/optimization-guide.md) includes proxy examples
+for SIF, thermal, and energy-balance fitting plus a real ARC -> upstream SCOPE
+fluorescence run where `fqe` recovers a known `F740` twin-observation target.
 
 ## Module Overview
 

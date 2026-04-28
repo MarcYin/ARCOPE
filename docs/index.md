@@ -11,6 +11,7 @@ Bridge ARC crop-state retrieval with SCOPE canopy radiative-transfer simulation 
 
 [Open the real full run](full-run-example.md){ .md-button .md-button--primary }
 [Quick start](quickstart.md){ .md-button }
+[Optimization guide](optimization-guide.md){ .md-button }
 [Installation](installation.md){ .md-button }
 
 !!! success "What is real here"
@@ -112,6 +113,7 @@ Bridge ARC crop-state retrieval with SCOPE canopy radiative-transfer simulation 
 | --- | --- | --- |
 | Real full run | End-to-end ARC retrieval, weather, geometry, saved SCOPE outputs, and interactive explorer | [Real Full Run](full-run-example.md) |
 | Core showcase | Dependency-light walkthrough of the bridge and optimization surfaces | [Core Showcase](showcase-experiment.md) |
+| Optimisation guide | How SIF, thermal, and energy-balance fitting is configured, including a real ARC/SCOPE `F740` fit | [Optimization Guide](optimization-guide.md) |
 | Step-by-step usage | Lower-level bridge and pipeline usage patterns | [Quick Start](quickstart.md) |
 | Runtime setup | Installation routes for ARC, SCOPE, GDAL, and ERA5 access | [Installation](installation.md) |
 
