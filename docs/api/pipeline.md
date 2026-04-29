@@ -33,6 +33,7 @@ class PipelineConfig:
     scope_options: dict[str, Any] = field(default_factory=dict)
     device: str = "cpu"
     dtype: str = "float64"
+    scope_chunk_size: int | None = 1024
 
     # Output options
     output_dir: PathLike = Path("./output")
@@ -82,6 +83,7 @@ Master configuration dataclass for the ARC-SCOPE pipeline.
 | `scope_options` | `dict` | `{}` | Additional SCOPE options to override defaults. |
 | `device` | `str` | `"cpu"` | PyTorch device (`"cpu"` or `"cuda"`). |
 | `dtype` | `str` | `"float64"` | PyTorch dtype string. |
+| `scope_chunk_size` | `int` or `None` | `1024` | Number of stacked `y/x/time` cells per SCOPE batch. Set to `None` or `0` to disable SCOPE chunking. |
 
 ### Output Options
 
@@ -103,14 +105,21 @@ energy-balance workflows, see the [Optimization Guide](../optimization-guide.md)
 
 When optimisation is enabled, `optim_config` must provide observed target data through `observations` (an `xarray.Dataset`, `xarray.DataArray`, or mapping) or `observations_path` (NetCDF). `target_variables` defaults to all variables in the observations dataset when omitted.
 
+Large fields can use SCOPE's native chunked execution by setting
+`scope_chunk_size` on the pipeline. Optimisation runs may override that value
+with `optim_config["chunk_size"]`, `optim_config["batch_size"]`, or the same
+keys inside nested `optim_config["optim"]` payloads.
+
 Example:
 
 ```python
 PipelineConfig(
     ...,
     scope_workflow="fluorescence",
+    scope_chunk_size=512,
     optim_config={
         "enabled": True,
+        "batch_size": 256,
         "observations_path": "observed_sif.nc",
         "target_variables": ["F740"],
         "parameters": [

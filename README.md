@@ -90,6 +90,7 @@ python3 -m arc_scope.experiments.dual_workflow \
   --workflow fluorescence \
   --workflow thermal \
   --simulation-subset-size 8 \
+  --scope-chunk-size 512 \
   --dtype float32 \
   --output-dir ./full-run-output
 ```
@@ -163,8 +164,10 @@ config = PipelineConfig(
     year=2021,
     scope_workflow="fluorescence",
     scope_root_path="./upstream/SCOPE",
+    scope_chunk_size=512,
     optim_config={
         "enabled": True,
+        "batch_size": 256,
         "observations_path": "observed_f740.nc",
         "target_variables": ["F740"],
         "parameters": [

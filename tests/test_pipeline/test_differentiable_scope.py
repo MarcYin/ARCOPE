@@ -17,6 +17,7 @@ from arc_scope.pipeline.optimization import (
 )
 from arc_scope.pipeline.steps import (
     _TensorScopeGridDataModule,
+    _resolve_scope_chunk_size,
     _to_torch_tensor_preserving_graph,
 )
 
@@ -161,6 +162,49 @@ def test_explicit_autograd_jac_setting_overrides_pipeline_default():
 
     assert optimizer._autograd_disabled is True
     assert _resolve_autograd_jac_setting(optim_config, default="required") is False
+
+
+def test_scope_chunk_size_defaults_to_pipeline_setting(tmp_path):
+    config = PipelineConfig(
+        geojson_path=tmp_path / "field.geojson",
+        start_date="2021-06-01",
+        end_date="2021-06-02",
+        crop_type="wheat",
+        start_of_season=120,
+        year=2021,
+        scope_chunk_size=256,
+    )
+
+    assert _resolve_scope_chunk_size(config) == 256
+
+
+def test_optimization_chunk_size_overrides_scope_setting(tmp_path):
+    config = PipelineConfig(
+        geojson_path=tmp_path / "field.geojson",
+        start_date="2021-06-01",
+        end_date="2021-06-02",
+        crop_type="wheat",
+        start_of_season=120,
+        year=2021,
+        scope_chunk_size=1024,
+        optim_config={"optim": {"enabled": True, "batch_size": "128"}},
+    )
+
+    assert _resolve_scope_chunk_size(config) == 128
+
+
+def test_scope_chunk_size_can_disable_chunking(tmp_path):
+    config = PipelineConfig(
+        geojson_path=tmp_path / "field.geojson",
+        start_date="2021-06-01",
+        end_date="2021-06-02",
+        crop_type="wheat",
+        start_of_season=120,
+        year=2021,
+        scope_chunk_size=0,
+    )
+
+    assert _resolve_scope_chunk_size(config) is None
 
 
 def test_pipeline_config_still_allows_fluorescence_scope_workflow(tmp_path):

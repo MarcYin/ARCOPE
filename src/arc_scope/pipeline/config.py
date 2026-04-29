@@ -80,6 +80,9 @@ class PipelineConfig:
         PyTorch device for SCOPE (``"cpu"`` or ``"cuda"``).
     dtype:
         PyTorch dtype string (``"float32"`` or ``"float64"``).
+    scope_chunk_size:
+        Number of stacked ``y/x/time`` cells per SCOPE batch. Set to ``None``
+        or a non-positive value to let SCOPE process the full stack at once.
 
     Output options
     --------------
@@ -122,6 +125,7 @@ class PipelineConfig:
     scope_options: dict[str, Any] = field(default_factory=dict)
     device: str = "cpu"
     dtype: str = "float64"
+    scope_chunk_size: int | None = 1024
 
     # Output options
     output_dir: PathLike = Path("./output")

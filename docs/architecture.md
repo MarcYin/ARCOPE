@@ -105,7 +105,8 @@ Orchestrates the end-to-end workflow with `ArcScopePipeline`. Each stage is expo
 - `fetch_weather()` -- get meteorological data
 - `build_observation_dataset()` -- compute solar/viewing geometry
 - `prepare_scope_dataset()` -- merge all inputs for SCOPE
-- `run_scope_simulation()` -- execute the SCOPE model
+- `run_scope_simulation()` -- execute the SCOPE model, passing ARC-SCOPE's
+  `scope_chunk_size` into SCOPE's native `SimulationConfig.chunk_size`
 
 `PipelineConfig` centralises all settings and maps workflow names to SCOPE option flags.
 
@@ -191,6 +192,9 @@ This separation means:
 - Bridge conversion, weather fetching, and data preparation work without PyTorch
 - SCOPE simulation requires `torch >= 2.2` and `scope-rtm >= 0.2`
 - The optimisation module bridges both worlds: `ScopeObjective.evaluate()` is numpy-compatible for reported initial/final losses, while `evaluate_torch()` and `evaluate_value_and_gradient()` call `run_scope_simulation_tensors()` for scipy's `jac` hook and `TorchOptimizer`
-- `run_scope_simulation_tensors()` calls SCOPE's raw tensor-returning workflow methods and computes optimisation losses before xarray/NetCDF assembly, because dataset assembly is an export boundary that detaches tensors
+- `run_scope_simulation_tensors()` calls SCOPE's raw tensor-returning workflow methods before xarray/NetCDF assembly, because dataset assembly is an export boundary that detaches tensors
+- Both the normal runner and tensor-preserving optimisation runner pass
+  `scope_chunk_size`/optimisation `batch_size` into upstream SCOPE chunking so
+  large `y/x/time` stacks can be evaluated in smaller forward batches
 
 The design allows lightweight use cases (bridge-only, data inspection) without heavy GPU dependencies, while supporting full differentiable simulation when all components are installed.

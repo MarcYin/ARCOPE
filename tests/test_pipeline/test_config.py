@@ -106,6 +106,7 @@ def test_default_values():
     assert config.scope_workflow == "reflectance"
     assert config.device == "cpu"
     assert config.dtype == "float64"
+    assert config.scope_chunk_size == 1024
     assert config.save_arc_npz is True
     assert config.save_scope_netcdf is True
     assert config.optimize is False

@@ -79,6 +79,7 @@ This page documents the real showcase path from the beginning to the end of the 
       --workflow fluorescence \
       --workflow thermal \
       --simulation-subset-size 8 \
+      --scope-chunk-size 512 \
       --dtype float32 \
       --output-dir ./docs/assets/full-run
     ```
@@ -94,6 +95,7 @@ This page documents the real showcase path from the beginning to the end of the 
       --scope-root-path ./upstream/SCOPE \
       --workflow reflectance \
       --workflow energy-balance \
+      --scope-chunk-size 256 \
       --dtype float32 \
       --output-dir ./full-run-output-energy-balance
     ```

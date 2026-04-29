@@ -6,6 +6,16 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-04-29
+
+### Added
+- Added `PipelineConfig.scope_chunk_size` and CLI `--scope-chunk-size` so
+  ARC-SCOPE passes SCOPE's native `SimulationConfig.chunk_size` through normal
+  forward runs and tensor-preserving optimisation evaluations.
+- Optimisation configs can override the pipeline chunk size with
+  `scope_chunk_size`, `chunk_size`, or `batch_size`, including nested
+  `optim` runner payloads.
+
 ## [0.1.3] - 2026-04-28
 
 ### Fixed
@@ -105,7 +115,9 @@ All notable changes to arcope are documented here. This project follows
 - **CI**: GitHub Actions for tests (Python 3.9-3.14), docs build + deploy,
   and PyPI release via OIDC trusted publishing.
 
-[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/MarcYin/ARCOPE/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/MarcYin/ARCOPE/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/MarcYin/ARCOPE/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/MarcYin/ARCOPE/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/MarcYin/ARCOPE/releases/tag/v0.1.0

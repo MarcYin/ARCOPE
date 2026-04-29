@@ -383,6 +383,7 @@ def run_scope_simulation(
         end_time=end_time,
         device=str(device),
         dtype=torch_dtype,
+        chunk_size=_resolve_scope_chunk_size(config),
     )
 
     # Build leaf inclination distribution (Campbell spherical, 57 deg)
@@ -475,6 +476,8 @@ def run_scope_simulation_tensors(
         end_time=end_time,
         device=str(device),
         dtype=torch_dtype,
+        chunk_size=_resolve_scope_chunk_size(config),
+        require_grad=True,
     )
     lidf = campbell_lidf(57.0, device=device, dtype=torch_dtype)
     runner = ScopeGridRunner.from_scope_assets(
@@ -997,6 +1000,54 @@ def _as_bool_option(value: Any) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "on"}
     return bool(value)
+
+
+def _resolve_scope_chunk_size(config: PipelineConfig) -> int | None:
+    """Resolve SCOPE's stacked batch size from config and optimisation options.
+
+    ``scope-rtm`` chunks the stacked ``y/x/time`` dimension through
+    ``SimulationConfig.chunk_size``. ARC-SCOPE exposes a stable top-level field
+    while still accepting nested optimisation payloads from external runners.
+    """
+    raw = _lookup_chunk_size(_normalized_step_optim_config(config))
+    if raw is None:
+        raw = _lookup_chunk_size(config.scope_options)
+    if raw is None:
+        raw = config.scope_chunk_size
+    return _coerce_chunk_size(raw)
+
+
+def _lookup_chunk_size(options: Mapping[str, Any] | None) -> Any:
+    if not options:
+        return None
+    for key in ("scope_chunk_size", "chunk_size", "batch_size"):
+        if key in options:
+            return options[key]
+    return None
+
+
+def _normalized_step_optim_config(config: PipelineConfig) -> dict[str, Any]:
+    raw = dict(config.optim_config or {})
+    nested = raw.get("optim")
+    if isinstance(nested, Mapping):
+        merged = dict(nested)
+        merged.update({key: value for key, value in raw.items() if key != "optim"})
+        return merged
+    return raw
+
+
+def _coerce_chunk_size(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        stripped = value.strip().lower()
+        if stripped in {"", "none", "null", "false", "off", "disabled"}:
+            return None
+        value = stripped
+    chunk_size = int(value)
+    if chunk_size <= 0:
+        return None
+    return chunk_size
 
 
 def _patch_scope_fluspect_stacked_layers(fluspect_model_cls: type, torch_module: Any) -> None:

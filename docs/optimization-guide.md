@@ -147,6 +147,46 @@ assembly. The normal dataset runner is still used for initial/final reported
 outputs, but not for autograd gradient evaluation because upstream dataset
 assembly detaches tensors for export.
 
+## Chunked SCOPE Execution
+
+For larger fields, set the SCOPE batch size before optimisation. ARC-SCOPE
+passes this value to upstream `scope-rtm` as `SimulationConfig.chunk_size`, so
+the heavy SCOPE forward pass processes the stacked `y/x/time` cells in chunks
+instead of one dense batch.
+
+```python
+config = PipelineConfig(
+    ...,
+    scope_workflow="fluorescence",
+    scope_chunk_size=512,
+    optim_config={
+        "enabled": True,
+        "batch_size": 256,
+        "observations_path": "observed_f740.nc",
+        "target_variables": ["F740"],
+        "optimizer": {
+            "type": "scipy",
+            "method": "L-BFGS-B",
+            "use_autograd_jac": "required",
+        },
+    },
+)
+```
+
+Precedence is:
+
+1. `optim_config["scope_chunk_size"]`, `optim_config["chunk_size"]`, or
+   `optim_config["batch_size"]`.
+2. The same keys inside nested runner payloads such as
+   `optim_config["optim"]["batch_size"]`.
+3. `scope_options["scope_chunk_size"]`, `scope_options["chunk_size"]`, or
+   `scope_options["batch_size"]`.
+4. `PipelineConfig.scope_chunk_size`.
+
+Use smaller chunks when SIF, thermal, or energy-balance optimisation hits GPU
+or CPU memory limits. Use `0`, `None`, or `"disabled"` only when you explicitly
+want SCOPE to process the full stack at once.
+
 ## Upstream SCOPE Differentiability Requirements
 
 ARC-SCOPE can only compute real gradients for target variables whose SCOPE

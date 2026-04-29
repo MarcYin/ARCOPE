@@ -210,6 +210,7 @@ def run_dual_workflow_experiment(
     scope_root_path: PathLike | None = None,
     device: str = "cpu",
     dtype: str = "float64",
+    scope_chunk_size: int | None = 1024,
     simulation_subset_size: int | None = None,
 ) -> DualWorkflowExperimentResult:
     """Run the real ARC-SCOPE experiment from one shared retrieval."""
@@ -250,6 +251,7 @@ def run_dual_workflow_experiment(
         save_scope_netcdf=False,
         device=device,
         dtype=dtype,
+        scope_chunk_size=scope_chunk_size,
     )
 
     config_summary = _build_run_config_summary(
@@ -577,6 +579,15 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--dtype", default="float64")
     parser.add_argument(
+        "--scope-chunk-size",
+        type=int,
+        default=1024,
+        help=(
+            "Number of stacked y/x/time cells per SCOPE batch. "
+            "Use 0 to disable chunking."
+        ),
+    )
+    parser.add_argument(
         "--check-runtime",
         action="store_true",
         help="Print the runtime availability report and exit.",
@@ -622,6 +633,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         scope_root_path=args.scope_root_path,
         device=args.device,
         dtype=args.dtype,
+        scope_chunk_size=args.scope_chunk_size if args.scope_chunk_size > 0 else None,
         simulation_subset_size=args.simulation_subset_size,
     )
     files = write_dual_workflow_artifacts(result, args.output_dir)
@@ -633,6 +645,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     print(f"Year:         {args.year}")
     print(f"Date window:  {args.start_date} -> {args.end_date}")
     print(f"Workflows:    {', '.join(workflows)}")
+    print(f"Chunk size:   {args.scope_chunk_size if args.scope_chunk_size > 0 else 'disabled'}")
     subset = result.config.get("simulation_subset", {})
     if subset.get("applied"):
         print(
@@ -682,6 +695,7 @@ def _clone_pipeline_config(config: PipelineConfig, *, scope_workflow: str) -> Pi
         scope_options=dict(config.scope_options),
         device=config.device,
         dtype=config.dtype,
+        scope_chunk_size=config.scope_chunk_size,
         output_dir=config.output_dir,
         save_arc_npz=config.save_arc_npz,
         save_scope_netcdf=config.save_scope_netcdf,
@@ -720,6 +734,7 @@ def _build_run_config_summary(
         "scope_root_path": scope_root_path,
         "device": base_config.device,
         "dtype": base_config.dtype,
+        "scope_chunk_size": base_config.scope_chunk_size,
         "python": sys.version.split()[0],
     }
 

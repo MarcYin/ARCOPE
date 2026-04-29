@@ -334,6 +334,7 @@ def test_run_scope_simulation_routes_energy_balance_to_coupled_runner(monkeypatc
             self.dataset = dataset
             self.sim_config = sim_config
             self.required_vars = required_vars
+            calls["sim_config"] = sim_config
 
     class FakeRunner:
         def __init__(self):
@@ -445,6 +446,7 @@ def test_run_scope_simulation_routes_energy_balance_to_coupled_runner(monkeypatc
         start_of_season=170,
         year=2021,
         scope_workflow="energy-balance",
+        scope_chunk_size=64,
     )
 
     output = run_scope_simulation(scope_dataset, config)
@@ -452,8 +454,9 @@ def test_run_scope_simulation_routes_energy_balance_to_coupled_runner(monkeypatc
     assert {"F685", "Loutt"}.issubset(output.data_vars)
     assert output.attrs["scope_product"] == "energy_balance"
     assert output.attrs["scope_components"] == "energy,physiology,fluorescence,thermal"
+    assert calls["sim_config"].kwargs["chunk_size"] == 64
+    assert calls["runner"].calls == [("fluorescence", 2), ("thermal", 2)]
     assert calls["validations"] == [
         ("energy-balance-fluorescence", None),
         ("energy-balance-thermal", None),
     ]
-    assert calls["runner"].calls == [("fluorescence", 2), ("thermal", 2)]

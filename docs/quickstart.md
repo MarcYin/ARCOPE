@@ -28,6 +28,7 @@ python3 -m arc_scope.experiments.dual_workflow \
   --workflow reflectance \
   --workflow fluorescence \
   --workflow thermal \
+  --scope-chunk-size 512 \
   --dtype float32 \
   --output-dir ./full-run-output
 ```
