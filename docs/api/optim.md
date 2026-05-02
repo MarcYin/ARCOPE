@@ -174,7 +174,7 @@ Objective function wrapping a SCOPE forward pass. Injects parameters into the pr
 
 **`evaluate_torch(params, param_tensor, param_set)`** -- Evaluate with PyTorch autograd support. Converts the unconstrained optimisation tensor through `ParameterSet` and returns a differentiable scalar loss. Built-in pipeline optimisation sends the PyTorch parameter tensors to the tensor-preserving SCOPE runner instead of storing them in xarray.
 
-**`evaluate_value_and_gradient(values, param_set)`** -- Evaluate the differentiable loss and return `(loss, gradient)` in scipy's unconstrained parameter space. Raises `AutogradUnavailable` when PyTorch is missing or the forward path detached from autograd.
+**`evaluate_value_and_gradient(values, param_set)`** -- Evaluate the differentiable loss and return `(loss, gradient)` in scipy's unconstrained parameter space. With the built-in SCOPE runner and default MSE loss, this streams SCOPE tensor chunks and backpropagates each chunk loss immediately. Raises `AutogradUnavailable` when PyTorch is missing or the forward path detached from autograd.
 
 `AutogradUnavailable` is exported from `arc_scope.optim` for callers that set
 `use_autograd_jac="required"` and want to handle detached/non-differentiable

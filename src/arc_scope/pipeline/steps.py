@@ -6,7 +6,7 @@ pipelines or customise the data flow.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -514,6 +514,102 @@ def run_scope_simulation_tensors(
     )
 
 
+def iter_scope_simulation_tensor_chunks(
+    scope_dataset: xr.Dataset,
+    config: PipelineConfig,
+    parameter_values: Mapping[str, Any] | None = None,
+) -> Iterable[Mapping[str, Any]]:
+    """Yield differentiable SCOPE tensor outputs one chunk at a time.
+
+    This is the memory-oriented optimisation path. The caller must compute a
+    chunk loss and call ``backward()`` before advancing, otherwise autograd must
+    keep every chunk graph alive.
+    """
+    try:
+        import torch
+        from scope import SimulationConfig, ScopeGridRunner, campbell_lidf
+        from scope.spectral.fluspect import FluspectModel
+    except ImportError:
+        raise ImportError(
+            "SCOPE and PyTorch are required. Install with: pip install arcope[scope]"
+        )
+
+    _patch_scope_fluspect_stacked_layers(FluspectModel, torch)
+    runner_dataset, _ = _prepare_torch_runner_dataset(scope_dataset, torch)
+    parameter_values = {} if parameter_values is None else dict(parameter_values)
+    if parameter_values:
+        runner_dataset = runner_dataset.copy()
+        for name in parameter_values:
+            if name not in runner_dataset:
+                runner_dataset[name] = 0.0
+
+    times = runner_dataset.coords["time"].values
+    start_time = pd.Timestamp(times.min())
+    end_time = pd.Timestamp(times.max())
+
+    x = runner_dataset.coords["x"].values
+    y = runner_dataset.coords["y"].values
+    roi_bounds = (float(x.min()), float(y.min()), float(x.max()), float(y.max()))
+
+    dtype_map = {"float32": torch.float32, "float64": torch.float64}
+    torch_dtype = dtype_map.get(config.dtype, torch.float64)
+    device = torch.device(config.device)
+
+    sim_config = SimulationConfig(
+        roi_bounds=roi_bounds,
+        start_time=start_time,
+        end_time=end_time,
+        device=str(device),
+        dtype=torch_dtype,
+        chunk_size=_resolve_scope_chunk_size(config),
+        require_grad=True,
+    )
+    lidf = campbell_lidf(57.0, device=device, dtype=torch_dtype)
+    runner = ScopeGridRunner.from_scope_assets(
+        lidf=lidf,
+        device=device,
+        dtype=torch_dtype,
+        scope_root_path=config.scope_root_path,
+    )
+
+    required_vars = list(runner_dataset.data_vars)
+    data_module = _TensorScopeGridDataModule(
+        runner_dataset,
+        sim_config,
+        required_vars=required_vars,
+        torch_module=torch,
+        parameter_values=parameter_values,
+    )
+    varmap = {v: v for v in runner_dataset.data_vars}
+
+    if config.scope_workflow == "energy-balance":
+        _validate_hidden_energy_balance_inputs(runner_dataset)
+        yield from _iter_coupled_energy_balance_tensor_chunks(
+            runner,
+            data_module,
+            varmap=varmap,
+            soil_heat_method=int(config.resolved_scope_options.get("soil_heat_method", 2)),
+        )
+        return
+
+    _validate_differentiable_scope_options(config.resolved_scope_options)
+    if hasattr(runner, "iter_scope_dataset_tensors"):
+        yield from runner.iter_scope_dataset_tensors(
+            data_module,
+            varmap=varmap,
+            scope_options=config.resolved_scope_options,
+        )
+        return
+
+    for batch in data_module.iter_batches():
+        yield _run_scope_workflow_tensors(
+            runner,
+            _SingleTensorBatchDataModule(batch, attrs=runner_dataset.attrs),
+            varmap=varmap,
+            scope_options=config.resolved_scope_options,
+        )
+
+
 def _run_scope_workflow_tensors(
     runner: Any,
     data_module: Any,
@@ -521,6 +617,17 @@ def _run_scope_workflow_tensors(
     varmap: dict[str, str],
     scope_options: Mapping[str, Any],
 ) -> dict[str, Any]:
+    _validate_differentiable_scope_options(scope_options)
+
+    outputs = dict(runner.run(data_module, varmap=varmap))
+    if _as_bool_option(scope_options.get("calc_fluor", False)):
+        outputs.update(runner.run_layered_fluorescence(data_module, varmap=varmap))
+    if _as_bool_option(scope_options.get("calc_planck", False)):
+        outputs.update(runner.run_thermal(data_module, varmap=varmap))
+    return outputs
+
+
+def _validate_differentiable_scope_options(scope_options: Mapping[str, Any]) -> None:
     unsupported = [
         name
         for name in ("calc_directional", "calc_vert_profiles")
@@ -532,13 +639,6 @@ def _run_scope_workflow_tensors(
             + ", ".join(unsupported)
             + ". Disable those options or use finite differences."
         )
-
-    outputs = dict(runner.run(data_module, varmap=varmap))
-    if _as_bool_option(scope_options.get("calc_fluor", False)):
-        outputs.update(runner.run_layered_fluorescence(data_module, varmap=varmap))
-    if _as_bool_option(scope_options.get("calc_planck", False)):
-        outputs.update(runner.run_thermal(data_module, varmap=varmap))
-    return outputs
 
 
 def _run_coupled_energy_balance_tensors(
@@ -564,6 +664,22 @@ def _run_coupled_energy_balance_tensors(
         if name not in combined:
             combined[name] = value
     return combined
+
+
+def _iter_coupled_energy_balance_tensor_chunks(
+    runner: Any,
+    data_module: Any,
+    *,
+    varmap: dict[str, str],
+    soil_heat_method: int,
+) -> Iterable[dict[str, Any]]:
+    for batch in data_module.iter_batches():
+        yield _run_coupled_energy_balance_tensors(
+            runner,
+            _SingleTensorBatchDataModule(batch, attrs=data_module.dataset.attrs),
+            varmap=varmap,
+            soil_heat_method=soil_heat_method,
+        )
 
 
 def _run_coupled_energy_balance(
@@ -607,7 +723,7 @@ def _run_coupled_energy_balance(
     combined.attrs["scope_product"] = "energy_balance"
     combined.attrs["scope_components"] = "energy,physiology,fluorescence,thermal"
     combined.attrs["arc_scope_energy_balance"] = (
-        "Merged coupled fluorescence and thermal branches from scope-rtm 0.2.x"
+        "Merged coupled fluorescence and thermal branches from scope-rtm"
     )
     return combined
 
@@ -716,6 +832,24 @@ class _TensorScopeGridDataModule:
                         config=self.config,
                     )
             yield tensors
+
+
+class _SingleTensorBatchDataModule:
+    """Wrap one tensor batch behind SCOPE's minimal data-module protocol."""
+
+    def __init__(self, batch: Mapping[str, Any], attrs: Mapping[str, Any] | None = None) -> None:
+        self._batch = dict(batch)
+        self.dataset = xr.Dataset(attrs=dict(attrs or {}))
+
+    def iter_batches(self):
+        yield self._batch
+
+    def batch_size(self) -> int:
+        for value in self._batch.values():
+            shape = getattr(value, "shape", ())
+            if shape:
+                return int(shape[0])
+        return 1
 
 
 def _torch_parameter_like(
@@ -1051,7 +1185,7 @@ def _coerce_chunk_size(value: Any) -> int | None:
 
 
 def _patch_scope_fluspect_stacked_layers(fluspect_model_cls: type, torch_module: Any) -> None:
-    """Patch scope-rtm 0.2.0 to broadcast ``N`` before boolean masking."""
+    """Patch older scope-rtm FLUSPECT layers to broadcast ``N`` before masking."""
     if getattr(fluspect_model_cls._stacked_layers, "_arc_scope_patched", False):
         return
 

@@ -224,11 +224,19 @@ class TorchOptimizer:
         for i in range(self._max_steps):
             optimizer.zero_grad()
             named = params.from_array(param_tensor.detach().cpu().numpy())
-            loss = objective.evaluate_torch(named, param_tensor, params)
-            loss.backward()
+            streamed_loss = objective.backward_torch_streaming(
+                named,
+                param_tensor,
+                params,
+            )
+            if streamed_loss is None:
+                loss = objective.evaluate_torch(named, param_tensor, params)
+                loss.backward()
+                current_loss = loss.item()
+            else:
+                current_loss = streamed_loss
             optimizer.step()
 
-            current_loss = loss.item()
             if abs(prev_loss - current_loss) < self._tol:
                 self._converged = True
                 break

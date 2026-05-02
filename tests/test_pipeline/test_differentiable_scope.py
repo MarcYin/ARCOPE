@@ -13,6 +13,7 @@ from arc_scope.optim.parameters import ParameterSet, ParameterSpec
 from arc_scope.pipeline.config import PipelineConfig
 from arc_scope.pipeline.optimization import (
     _build_optimizer,
+    _default_torch_scope_runner,
     _resolve_autograd_jac_setting,
 )
 from arc_scope.pipeline.steps import (
@@ -139,6 +140,68 @@ def test_scope_objective_torch_runner_gets_params_without_dataset_injection():
 
     assert value == pytest.approx(9.0)
     assert gradient.tolist() == pytest.approx([-6.0])
+
+
+def test_scope_objective_streams_chunk_losses_before_returning_gradient():
+    torch = pytest.importorskip("torch")
+    base_ds = xr.Dataset({"template": ("sample", np.ones(5))})
+    obs_ds = xr.Dataset({"target": ("sample", np.zeros(5))})
+    params = ParameterSet(
+        [ParameterSpec("scale", initial=2.0, lower=0.1, upper=10.0, transform="log")]
+    )
+
+    class StreamingRunner:
+        def __init__(self):
+            self.iter_calls = 0
+            self.chunk_sizes = []
+
+        def __call__(self, dataset, torch_params):
+            scale = torch_params["scale"]
+            values = torch.arange(1, 6, dtype=torch.float64)
+            return {"target": scale * values}
+
+        def iter_chunks(self, dataset, torch_params):
+            self.iter_calls += 1
+            scale = torch_params["scale"]
+            values = torch.arange(1, 6, dtype=torch.float64)
+            for start, stop in ((0, 2), (2, 4), (4, 5)):
+                self.chunk_sizes.append(stop - start)
+                yield {"target": scale * values[start:stop]}
+
+    runner = StreamingRunner()
+    objective = ScopeObjective(
+        base_dataset=base_ds,
+        observations=obs_ds,
+        target_variables=["target"],
+        scope_runner=lambda dataset: xr.Dataset(
+            {"target": ("sample", np.ones(5))},
+            coords={"sample": np.arange(5)},
+        ),
+        torch_scope_runner=runner,
+    )
+
+    value, gradient = objective.evaluate_value_and_gradient(params.to_array(), params)
+
+    assert value == pytest.approx(44.0)
+    assert gradient.tolist() == pytest.approx([88.0])
+    assert runner.iter_calls == 2
+    assert runner.chunk_sizes == [2, 2, 1, 2, 2, 1]
+
+
+def test_default_torch_scope_runner_exposes_chunk_iterator(tmp_path):
+    config = PipelineConfig(
+        geojson_path=tmp_path / "field.geojson",
+        start_date="2021-06-01",
+        end_date="2021-06-02",
+        crop_type="wheat",
+        start_of_season=120,
+        year=2021,
+    )
+
+    runner = _default_torch_scope_runner(config)
+
+    assert callable(runner)
+    assert callable(getattr(runner, "iter_chunks", None))
 
 
 def test_real_scope_pipeline_defaults_to_required_autograd_jac():

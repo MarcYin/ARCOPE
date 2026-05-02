@@ -448,16 +448,40 @@ def _default_scope_runner(config: PipelineConfig) -> ScopeRunner:
 
 
 def _default_torch_scope_runner(config: PipelineConfig) -> TorchScopeRunner:
-    def _run(dataset: xr.Dataset, params: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _DefaultTorchScopeRunner(config)
+
+
+class _DefaultTorchScopeRunner:
+    """Default differentiable SCOPE runner with chunk streaming support."""
+
+    def __init__(self, config: PipelineConfig) -> None:
+        self._config = config
+
+    def __call__(
+        self,
+        dataset: xr.Dataset,
+        params: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
         from arc_scope.pipeline.steps import run_scope_simulation_tensors
 
         return run_scope_simulation_tensors(
             dataset,
-            config,
+            self._config,
             parameter_values=params,
         )
 
-    return _run
+    def iter_chunks(
+        self,
+        dataset: xr.Dataset,
+        params: Mapping[str, Any],
+    ):
+        from arc_scope.pipeline.steps import iter_scope_simulation_tensor_chunks
+
+        yield from iter_scope_simulation_tensor_chunks(
+            dataset,
+            self._config,
+            parameter_values=params,
+        )
 
 
 def _as_bool(value: Any) -> bool:

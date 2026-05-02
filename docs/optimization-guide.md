@@ -154,6 +154,12 @@ passes this value to upstream `scope-rtm` as `SimulationConfig.chunk_size`, so
 the heavy SCOPE forward pass processes the stacked `y/x/time` cells in chunks
 instead of one dense batch.
 
+For autograd gradients, ARC-SCOPE uses the upstream streaming tensor iterator
+and calls `backward()` on each chunk loss before requesting the next chunk. This
+is the part that makes `scope_chunk_size` reduce peak autograd memory. Calling
+`run_scope_tensors()` or `run_scope_dataset(..., return_tensors=True)` and then
+doing one full-batch `loss.backward()` still keeps every chunk graph alive.
+
 ```python
 config = PipelineConfig(
     ...,

@@ -110,6 +110,11 @@ Large fields can use SCOPE's native chunked execution by setting
 with `optim_config["chunk_size"]`, `optim_config["batch_size"]`, or the same
 keys inside nested `optim_config["optim"]` payloads.
 
+For autograd optimisation, ARC-SCOPE streams tensor chunks and backpropagates
+each chunk loss immediately. `scope_chunk_size` does not reduce autograd graph
+memory if callers collect all tensor chunks first and run one full-batch
+`loss.backward()`.
+
 Example:
 
 ```python

@@ -190,11 +190,15 @@ SCOPE's simulation core runs on PyTorch (`scope-rtm` package). The bridge and we
 This separation means:
 
 - Bridge conversion, weather fetching, and data preparation work without PyTorch
-- SCOPE simulation requires `torch >= 2.2` and `scope-rtm >= 0.2`
-- The optimisation module bridges both worlds: `ScopeObjective.evaluate()` is numpy-compatible for reported initial/final losses, while `evaluate_torch()` and `evaluate_value_and_gradient()` call `run_scope_simulation_tensors()` for scipy's `jac` hook and `TorchOptimizer`
+- SCOPE simulation requires `torch >= 2.2` and `scope-rtm >= 0.4.2`
+- The optimisation module bridges both worlds: `ScopeObjective.evaluate()` is numpy-compatible for reported initial/final losses, while `evaluate_torch()` uses the tensor-preserving SCOPE runner and `evaluate_value_and_gradient()` uses the streaming tensor runner for scipy's `jac` hook
 - `run_scope_simulation_tensors()` calls SCOPE's raw tensor-returning workflow methods before xarray/NetCDF assembly, because dataset assembly is an export boundary that detaches tensors
 - Both the normal runner and tensor-preserving optimisation runner pass
   `scope_chunk_size`/optimisation `batch_size` into upstream SCOPE chunking so
   large `y/x/time` stacks can be evaluated in smaller forward batches
+- During autograd gradient evaluation, ARC-SCOPE uses SCOPE's streaming tensor
+  iterator and backpropagates each chunk loss immediately. Calling the
+  full-batch tensor runner and then one `loss.backward()` would still retain all
+  chunk graphs.
 
 The design allows lightweight use cases (bridge-only, data inspection) without heavy GPU dependencies, while supporting full differentiable simulation when all components are installed.

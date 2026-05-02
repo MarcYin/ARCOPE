@@ -6,6 +6,18 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-05-02
+
+### Fixed
+- Updated differentiable SCOPE optimisation to use upstream `scope-rtm`
+  streaming tensor chunks and backpropagate each chunk loss immediately, so
+  `scope_chunk_size` can reduce peak autograd memory instead of retaining all
+  chunk graphs until one full-batch backward pass.
+
+### Changed
+- Raised the optional SCOPE dependency to `scope-rtm>=0.4.2`, the release that
+  exposes the streaming tensor iterators used by ARC-SCOPE.
+
 ## [0.1.4] - 2026-04-29
 
 ### Added
@@ -115,7 +127,8 @@ All notable changes to arcope are documented here. This project follows
 - **CI**: GitHub Actions for tests (Python 3.9-3.14), docs build + deploy,
   and PyPI release via OIDC trusted publishing.
 
-[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/MarcYin/ARCOPE/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/MarcYin/ARCOPE/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/MarcYin/ARCOPE/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/MarcYin/ARCOPE/compare/v0.1.1...v0.1.2

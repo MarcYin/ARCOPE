@@ -179,6 +179,25 @@ class ScopeObjective:
             dtype=torch.float64,
             requires_grad=True,
         )
+        if self._can_stream_torch_loss():
+            try:
+                tensor.grad = None
+                value = self._backward_torch_streaming(tensor, param_set, torch=torch)
+            except AutogradUnavailable:
+                raise
+            except (AttributeError, RuntimeError, TypeError) as exc:
+                raise AutogradUnavailable(
+                    "Streaming autograd objective evaluation failed. Falling back "
+                    "to scipy finite differences is allowed when ScipyOptimizer "
+                    "uses use_autograd_jac='auto'."
+                ) from exc
+            if tensor.grad is None:
+                raise AutogradUnavailable(
+                    "Autograd did not produce a parameter gradient."
+                )
+            gradient = tensor.grad.detach().cpu().numpy().astype(np.float64, copy=False)
+            return value, gradient
+
         try:
             loss = self.evaluate_torch({}, tensor, param_set)
         except AutogradUnavailable:
@@ -195,6 +214,25 @@ class ScopeObjective:
             raise AutogradUnavailable("Autograd did not produce a parameter gradient.")
         gradient = tensor.grad.detach().cpu().numpy().astype(np.float64, copy=False)
         return float(loss.detach().cpu().item()), gradient
+
+    def backward_torch_streaming(
+        self,
+        params: dict[str, float],
+        param_tensor: Any,
+        param_set: ParameterSet,
+    ) -> float | None:
+        """Backpropagate a streamed chunk loss when the runner supports it.
+
+        Returns the scalar loss value when streaming was used, otherwise
+        ``None`` so callers can keep the regular full-batch loss path.
+        """
+        if not self._can_stream_torch_loss():
+            return None
+
+        import torch
+
+        _ = params
+        return self._backward_torch_streaming(param_tensor, param_set, torch=torch)
 
     def _run_scope(self, dataset: xr.Dataset) -> xr.Dataset:
         """Execute the SCOPE simulation."""
@@ -226,6 +264,167 @@ class ScopeObjective:
             dtype=dtype,
             device=device,
         )
+
+    def _can_stream_torch_loss(self) -> bool:
+        return (
+            self._loss_fn is _mse_loss
+            and self._torch_scope_runner is not None
+            and callable(getattr(self._torch_scope_runner, "iter_chunks", None))
+        )
+
+    def _backward_torch_streaming(
+        self,
+        param_tensor: Any,
+        param_set: ParameterSet,
+        *,
+        torch: Any,
+    ) -> float:
+        torch_params = param_set.from_torch(param_tensor)
+        dtype = param_tensor.dtype
+        device = param_tensor.device
+        observation_tensors = {
+            var: _as_torch_tensor(
+                self._observations[var],
+                torch=torch,
+                dtype=dtype,
+                device=device,
+            ).reshape(-1)
+            for var in self._target_variables
+        }
+
+        with torch.no_grad():
+            counts, total_sse = self._streaming_mse_totals(
+                torch_params,
+                observation_tensors,
+                torch=torch,
+                dtype=dtype,
+                device=device,
+            )
+        if not counts:
+            raise ValueError("Objective has no finite prediction/observation pairs.")
+
+        total_loss_value = sum(total_sse[var] / counts[var] for var in counts)
+        self._backward_streaming_mse(
+            torch_params,
+            observation_tensors,
+            counts,
+            torch=torch,
+            dtype=dtype,
+            device=device,
+        )
+        return float(total_loss_value)
+
+    def _streaming_mse_totals(
+        self,
+        params: dict[str, Any],
+        observation_tensors: dict[str, Any],
+        *,
+        torch: Any,
+        dtype: Any,
+        device: Any,
+    ) -> tuple[dict[str, int], dict[str, float]]:
+        counts = {var: 0 for var in self._target_variables}
+        total_sse = {var: 0.0 for var in self._target_variables}
+        offsets = {var: 0 for var in self._target_variables}
+        for output in self._iter_scope_torch_chunks(self._base_dataset, params):
+            self._validate_torch_output(output)
+            for var in self._target_variables:
+                pred, obs, offsets[var] = self._aligned_streaming_tensors(
+                    output[var],
+                    observation_tensors[var],
+                    offsets[var],
+                    torch=torch,
+                    dtype=dtype,
+                    device=device,
+                )
+                mask = torch.isfinite(pred) & torch.isfinite(obs)
+                if bool(mask.any().detach().cpu().item()):
+                    diff = pred[mask] - obs[mask]
+                    counts[var] += int(mask.sum().detach().cpu().item())
+                    total_sse[var] += float(torch.sum(diff * diff).detach().cpu().item())
+
+        compared_counts = {
+            var: count for var, count in counts.items() if count > 0
+        }
+        compared_sse = {
+            var: total_sse[var] for var in compared_counts
+        }
+        return compared_counts, compared_sse
+
+    def _backward_streaming_mse(
+        self,
+        params: dict[str, Any],
+        observation_tensors: dict[str, Any],
+        counts: dict[str, int],
+        *,
+        torch: Any,
+        dtype: Any,
+        device: Any,
+    ) -> None:
+        offsets = {var: 0 for var in self._target_variables}
+        for output in self._iter_scope_torch_chunks(self._base_dataset, params):
+            self._validate_torch_output(output)
+            chunk_loss = None
+            for var in self._target_variables:
+                pred, obs, offsets[var] = self._aligned_streaming_tensors(
+                    output[var],
+                    observation_tensors[var],
+                    offsets[var],
+                    torch=torch,
+                    dtype=dtype,
+                    device=device,
+                )
+                mask = torch.isfinite(pred) & torch.isfinite(obs)
+                if bool(mask.any().detach().cpu().item()) and counts.get(var, 0) > 0:
+                    diff = pred[mask] - obs[mask]
+                    loss = torch.sum(diff * diff) / counts[var]
+                    chunk_loss = loss if chunk_loss is None else chunk_loss + loss
+            if chunk_loss is not None:
+                # The transformed physical parameters are shared across chunk
+                # forwards. Retaining that tiny upstream graph avoids requiring
+                # one full graph over all SCOPE chunks.
+                chunk_loss.backward(retain_graph=True)
+            del output
+
+    def _iter_scope_torch_chunks(self, dataset: xr.Dataset, params: dict[str, Any]):
+        iter_chunks = getattr(self._torch_scope_runner, "iter_chunks", None)
+        if iter_chunks is None:
+            raise AutogradUnavailable(
+                "The configured SCOPE runner does not expose chunk streaming."
+            )
+        return iter_chunks(dataset, params)
+
+    def _validate_torch_output(self, output: Any) -> None:
+        missing_from_output = [var for var in self._target_variables if var not in output]
+        if missing_from_output:
+            raise ValueError(
+                "SCOPE output is missing target variables: "
+                + ", ".join(missing_from_output)
+            )
+        missing_from_observations = [
+            var for var in self._target_variables if var not in self._observations
+        ]
+        if missing_from_observations:
+            raise ValueError(
+                "Observations are missing target variables: "
+                + ", ".join(missing_from_observations)
+            )
+
+    def _aligned_streaming_tensors(
+        self,
+        predicted: Any,
+        observed: Any,
+        offset: int,
+        *,
+        torch: Any,
+        dtype: Any,
+        device: Any,
+    ) -> tuple[Any, Any, int]:
+        pred = _as_torch_tensor(predicted, torch=torch, dtype=dtype, device=device).reshape(-1)
+        n = min(int(pred.numel()), int(observed.numel()) - offset)
+        if n <= 0:
+            return pred[:0], observed[:0], offset
+        return pred[:n], observed[offset : offset + n], offset + n
 
     def _inject_params(self, params: dict[str, Any]) -> xr.Dataset:
         ds = self._base_dataset.copy(deep=True)
