@@ -6,6 +6,21 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-05-03
+
+### Fixed
+- `ScopeObjective` now aligns predictions and observations by xarray
+  coordinates instead of truncating flattened arrays, preventing gridded
+  SCOPE output from being compared against the corner pixel for point
+  observations.
+- The numpy, PyTorch, streaming forward, and streaming backward objective
+  paths now share the same coordinate-alignment contract and raise when
+  aligned coordinates have no overlap.
+
+### Added
+- Added `pixel_selector` support for point-observation optimisation against
+  gridded predictions, including coordinate-label and positional-index forms.
+
 ## [0.1.5] - 2026-05-02
 
 ### Fixed
@@ -127,7 +142,8 @@ All notable changes to arcope are documented here. This project follows
 - **CI**: GitHub Actions for tests (Python 3.9-3.14), docs build + deploy,
   and PyPI release via OIDC trusted publishing.
 
-[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/MarcYin/ARCOPE/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/MarcYin/ARCOPE/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/MarcYin/ARCOPE/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/MarcYin/ARCOPE/compare/v0.1.2...v0.1.3
