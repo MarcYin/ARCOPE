@@ -188,6 +188,54 @@ def test_scope_objective_streams_chunk_losses_before_returning_gradient():
     assert runner.chunk_sizes == [2, 2, 1, 2, 2, 1]
 
 
+def test_scope_objective_streaming_spatial_selector_matches_full_torch_loss():
+    torch = pytest.importorskip("torch")
+    values = torch.arange(12, dtype=torch.float64).reshape(2, 2, 3)
+    base_ds = xr.Dataset(
+        {"template": (("y", "x", "time"), np.ones((2, 2, 3)))},
+        coords={"y": [10, 11], "x": [20, 21], "time": [0, 1, 2]},
+    )
+    obs_ds = xr.Dataset(
+        {"target": ("time", np.array([7.0, 9.0, 11.0]))},
+        coords={"time": [0, 1, 2]},
+    )
+    params = ParameterSet(
+        [ParameterSpec("scale", initial=1.0, lower=-10.0, upper=10.0)]
+    )
+
+    class StreamingRunner:
+        def __call__(self, dataset, torch_params):
+            scale = torch_params["scale"]
+            return {"target": (scale * values).reshape(-1)}
+
+        def iter_chunks(self, dataset, torch_params):
+            scale = torch_params["scale"]
+            flat = (scale * values).reshape(-1)
+            for start, stop in ((0, 4), (4, 8), (8, 12)):
+                yield {"target": flat[start:stop]}
+
+    objective = ScopeObjective(
+        base_dataset=base_ds,
+        observations=obs_ds,
+        target_variables=["target"],
+        torch_scope_runner=StreamingRunner(),
+        pixel_selector={"y": 11, "x": 20},
+    )
+    full_tensor = params.to_torch()
+    full_loss = objective.evaluate_torch({}, full_tensor, params)
+    full_loss.backward()
+
+    stream_value, stream_gradient = objective.evaluate_value_and_gradient(
+        params.to_array(),
+        params,
+    )
+
+    assert stream_value == pytest.approx(float(full_loss.detach().cpu().item()))
+    assert stream_gradient.tolist() == pytest.approx(
+        full_tensor.grad.detach().cpu().numpy().tolist()
+    )
+
+
 def test_default_torch_scope_runner_exposes_chunk_iterator(tmp_path):
     config = PipelineConfig(
         geojson_path=tmp_path / "field.geojson",

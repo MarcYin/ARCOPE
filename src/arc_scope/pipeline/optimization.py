@@ -12,7 +12,11 @@ from typing import Any
 import numpy as np
 import xarray as xr
 
-from arc_scope.optim.objective import ScopeObjective, _mse_loss
+from arc_scope.optim.objective import (
+    ScopeObjective,
+    _coordinate_aligned_data_arrays,
+    _mse_loss,
+)
 from arc_scope.optim.parameters import (
     ENERGY_BALANCE_OPTIMIZATION_PARAMS,
     SIF_OPTIMIZATION_PARAMS,
@@ -78,6 +82,7 @@ def run_pipeline_optimization(
         else _default_torch_scope_runner(config)
     )
     loss_fn = optim_config.get("loss_fn")
+    pixel_selector = optim_config.get("pixel_selector")
 
     initial_values = _parameter_values(parameter_set)
     objective = ScopeObjective(
@@ -88,6 +93,7 @@ def run_pipeline_optimization(
         scope_runner=runner,
         torch_scope_runner=torch_runner,
         config=config,
+        pixel_selector=pixel_selector,
     )
 
     initial_loss = float(objective.evaluate(initial_values))
@@ -104,6 +110,7 @@ def run_pipeline_optimization(
         observations,
         target_variables,
         loss_fn,
+        pixel_selector=pixel_selector,
     )
 
     optimization_result = OptimizationResult(
@@ -413,6 +420,8 @@ def _compute_dataset_loss(
     observations: xr.Dataset,
     target_variables: Sequence[str],
     loss_fn: Any,
+    *,
+    pixel_selector: Mapping[str, Any] | None = None,
 ) -> float:
     """Compute the configured scalar loss for a SCOPE output dataset."""
     loss = loss_fn or _mse_loss
@@ -425,13 +434,18 @@ def _compute_dataset_loss(
             raise ValueError(
                 f"Optimization observations are missing target variable '{variable}'."
             )
-        predicted = output[variable].values.ravel()
-        observed = observations[variable].values.ravel()
-        n = min(len(predicted), len(observed))
-        mask = np.isfinite(predicted[:n]) & np.isfinite(observed[:n])
+        predicted_da, observed_da = _coordinate_aligned_data_arrays(
+            output[variable],
+            observations[variable],
+            var_name=variable,
+            pixel_selector=pixel_selector,
+        )
+        predicted = np.asarray(predicted_da.values).reshape(-1)
+        observed = np.asarray(observed_da.values).reshape(-1)
+        mask = np.isfinite(predicted) & np.isfinite(observed)
         if mask.any():
             compared = True
-            total_loss += float(loss(predicted[:n][mask], observed[:n][mask]))
+            total_loss += float(loss(predicted[mask], observed[mask]))
 
     if not compared:
         raise ValueError("Optimization loss has no finite prediction/observation pairs.")

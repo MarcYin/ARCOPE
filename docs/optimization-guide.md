@@ -73,9 +73,27 @@ observations = xr.Dataset(
 config.optim_config["observations"] = observations
 ```
 
-ARC-SCOPE compares finite values after flattening each target variable. The
-current objective aligns by common array length, so you should prepare
-observations on the same time/space subset as the model output.
+ARC-SCOPE aligns predictions and observations by shared xarray coordinates
+before comparing finite values. If a SCOPE target is gridded, for example
+`(y, x, time)`, and the observation is a point time series, for example
+`(time,)`, choose the pixel explicitly:
+
+```python
+config.optim_config["pixel_selector"] = {"y": tower_y, "x": tower_x}
+```
+
+For positional indices instead of coordinate labels, use:
+
+```python
+config.optim_config["pixel_selector"] = {
+    "y": {"isel": tower_y_index},
+    "x": {"isel": tower_x_index},
+}
+```
+
+If you intend to fit a field average, average the model output or observations
+to matching dimensions before optimisation. ARC-SCOPE raises `ValueError` when
+the target arrays cannot be aligned by coordinates.
 
 ## Choosing Parameters
 
@@ -323,9 +341,9 @@ print(fit.parameters_optimized)
 print(fit.initial_loss, fit.optimized_loss, fit.converged)
 ```
 
-The observation NetCDF must contain an `F740` variable on the same time/space
-support, or on a flattened subset that corresponds to the model output being
-fitted. If the external product uses different naming or units, rename and
+The observation NetCDF must contain an `F740` variable with coordinates that
+overlap the model output after any configured `pixel_selector` has been
+applied. If the external product uses different naming or units, rename and
 convert it before passing it to `observations_path`.
 
 ## Generated Example Artifacts

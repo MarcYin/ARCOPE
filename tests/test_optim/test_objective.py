@@ -65,6 +65,79 @@ def test_scope_objective_raises_for_missing_output_target():
         obj.evaluate({"fqe": 0.01})
 
 
+def test_scope_objective_requires_selector_for_spatial_prediction_point_observation():
+    """Gridded predictions must not be truncated against point observations."""
+    times = pd.date_range("2021-06-01", periods=4, freq="D")
+    pred = xr.Dataset(
+        {
+            "target": (
+                ("y", "x", "time"),
+                np.arange(2 * 3 * 4, dtype=np.float64).reshape(2, 3, 4),
+            )
+        },
+        coords={"y": [10, 11], "x": [20, 21, 22], "time": times},
+    )
+    obs = xr.Dataset(
+        {"target": ("time", np.full(4, 999.0))},
+        coords={"time": times},
+    )
+    obj = ScopeObjective(
+        base_dataset=pred,
+        observations=obs,
+        target_variables=["target"],
+        scope_runner=lambda ds: pred,
+    )
+
+    with pytest.raises(ValueError, match="extra dims"):
+        obj.evaluate({})
+
+
+def test_scope_objective_pixel_selector_aligns_spatial_prediction_by_time():
+    """A point observation should compare with the selected pixel time series."""
+    times = pd.date_range("2021-06-01", periods=4, freq="D")
+    values = np.arange(2 * 3 * 4, dtype=np.float64).reshape(2, 3, 4)
+    pred = xr.Dataset(
+        {"target": (("y", "x", "time"), values)},
+        coords={"y": [10, 11], "x": [20, 21, 22], "time": times},
+    )
+    observed = values[1, 2, :] + np.array([1.0, -1.0, 2.0, -2.0])
+    obs = xr.Dataset(
+        {"target": ("time", observed)},
+        coords={"time": times},
+    )
+    obj = ScopeObjective(
+        base_dataset=pred,
+        observations=obs,
+        target_variables=["target"],
+        scope_runner=lambda ds: pred,
+        pixel_selector={"y": 11, "x": 22},
+    )
+
+    expected = np.mean((values[1, 2, :] - observed) ** 2)
+    assert obj.evaluate({}) == pytest.approx(expected)
+
+
+def test_scope_objective_raises_for_non_overlapping_time_coordinates():
+    """Matching shapes are not enough when coordinate labels do not overlap."""
+    pred = xr.Dataset(
+        {"target": ("time", [1.0, 2.0, 3.0])},
+        coords={"time": pd.date_range("2021-06-01", periods=3, freq="D")},
+    )
+    obs = xr.Dataset(
+        {"target": ("time", [1.0, 2.0, 3.0])},
+        coords={"time": pd.date_range("2022-06-01", periods=3, freq="D")},
+    )
+    obj = ScopeObjective(
+        base_dataset=pred,
+        observations=obs,
+        target_variables=["target"],
+        scope_runner=lambda ds: pred,
+    )
+
+    with pytest.raises(ValueError, match="overlapping coordinates"):
+        obj.evaluate({})
+
+
 # ---------------------------------------------------------------------------
 # ParameterSet.inject_into_dataset test
 # ---------------------------------------------------------------------------

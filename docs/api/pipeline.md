@@ -103,7 +103,7 @@ energy-balance workflows, see the [Optimization Guide](../optimization-guide.md)
 | `optimize` | `bool` | `False` | Run a SCOPE parameter optimisation loop before returning the final output. |
 | `optim_config` | `dict` or `None` | `None` | Optimisation configuration. `optim_config["enabled"] = True` also enables optimisation for runner payloads that carry the flag inside the optimisation block. |
 
-When optimisation is enabled, `optim_config` must provide observed target data through `observations` (an `xarray.Dataset`, `xarray.DataArray`, or mapping) or `observations_path` (NetCDF). `target_variables` defaults to all variables in the observations dataset when omitted.
+When optimisation is enabled, `optim_config` must provide observed target data through `observations` (an `xarray.Dataset`, `xarray.DataArray`, or mapping) or `observations_path` (NetCDF). `target_variables` defaults to all variables in the observations dataset when omitted. Predictions and observations are aligned by shared coordinates; set `optim_config["pixel_selector"]` when gridded predictions must be compared with point observations.
 
 Large fields can use SCOPE's native chunked execution by setting
 `scope_chunk_size` on the pipeline. Optimisation runs may override that value

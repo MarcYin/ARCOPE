@@ -151,11 +151,13 @@ class ScopeObjective:
         target_variables: Sequence[str],
         loss_fn: Callable | None = None,
         scope_runner: Callable | None = None,
+        torch_scope_runner: Callable | None = None,
         config: Any = None,
+        pixel_selector: Mapping[str, Any] | None = None,
     ): ...
 ```
 
-Objective function wrapping a SCOPE forward pass. Injects parameters into the prepared dataset, runs SCOPE, and computes a scalar loss against observations.
+Objective function wrapping a SCOPE forward pass. Injects parameters into the prepared dataset, runs SCOPE, and computes a scalar loss against coordinate-aligned observations.
 
 ### Parameters
 
@@ -166,7 +168,14 @@ Objective function wrapping a SCOPE forward pass. Injects parameters into the pr
 | `target_variables` | `Sequence[str]` | SCOPE output variable names to extract and compare. |
 | `loss_fn` | `Callable` or `None` | Custom loss function `(predicted, observed) -> scalar`. Defaults to MSE. |
 | `scope_runner` | `Callable` or `None` | Custom SCOPE runner. Defaults to `run_scope_simulation`. |
+| `torch_scope_runner` | `Callable` or `None` | Optional tensor-preserving runner for autograd evaluations. |
 | `config` | `Any` | Pipeline configuration for SCOPE execution. |
+| `pixel_selector` | `Mapping[str, Any]` or `None` | Selector for prediction dimensions not present in observations, such as `{"y": y_coord, "x": x_coord}`. Use `{"y": {"isel": y_index}, "x": {"isel": x_index}}` for positional selection. |
+
+Predictions and observations are aligned by shared xarray coordinates. If a
+prediction has dimensions that observations lack, such as `(y, x, time)` output
+against a tower `(time,)` observation, `pixel_selector` is required. If aligned
+coordinates have no overlap, evaluation raises `ValueError`.
 
 ### Methods
 
