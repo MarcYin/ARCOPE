@@ -498,11 +498,19 @@ class ScopeObjective:
         ds = self._base_dataset.copy(deep=True)
         for name, val in params.items():
             if _is_torch_tensor(val):
-                ds[name] = _torch_dataarray_like(ds.get(name), val)
+                template = ds.get(name)
+                if template is None:
+                    template = _dataset_grid_template(ds)
+                ds[name] = _torch_dataarray_like(template, val)
             elif name in ds:
                 ds[name] = ds[name] * 0 + val
             else:
-                ds[name] = val
+                template = _dataset_grid_template(ds)
+                ds[name] = (
+                    _dataarray_like(template, val)
+                    if template is not None
+                    else val
+                )
         return ds
 
     def _torch_loss(
@@ -1035,12 +1043,13 @@ def _is_torch_tensor(value: Any) -> bool:
 
 def _torch_dataarray_like(template: xr.DataArray | None, value: Any) -> xr.DataArray:
     if template is None:
-        return xr.DataArray(value.reshape(()))
+        return xr.DataArray(_as_xarray_torch_duck_array(value.reshape(())))
     shape = tuple(template.shape)
     if shape:
         data = value * value.new_ones(shape)
     else:
         data = value.reshape(())
+    data = _as_xarray_torch_duck_array(data)
     return xr.DataArray(
         data,
         dims=template.dims,
@@ -1048,6 +1057,48 @@ def _torch_dataarray_like(template: xr.DataArray | None, value: Any) -> xr.DataA
         attrs=template.attrs,
         name=template.name,
     )
+
+
+def _as_xarray_torch_duck_array(value: Any) -> Any:
+    # xarray recognizes non-NumPy arrays as duck arrays when they expose the
+    # array-API namespace hook; PyTorch tensors do not provide it on all
+    # supported versions, so mark only the tensors ARC-SCOPE wraps.
+    if not hasattr(value, "__array_namespace__"):
+        try:
+            value.__array_namespace__ = lambda *args, **kwargs: __import__("torch")
+        except AttributeError:
+            pass
+    return value
+
+
+def _dataarray_like(template: xr.DataArray, value: Any) -> xr.DataArray:
+    shape = tuple(template.shape)
+    raw = np.asarray(value)
+    if shape:
+        data = np.broadcast_to(raw, shape).copy()
+    else:
+        data = raw.reshape(())
+    return xr.DataArray(
+        data,
+        dims=template.dims,
+        coords=template.coords,
+        attrs=template.attrs,
+        name=template.name,
+    )
+
+
+def _dataset_grid_template(dataset: xr.Dataset) -> xr.DataArray | None:
+    grid_dims = tuple(dim for dim in ("y", "x", "time") if dim in dataset.sizes)
+    if grid_dims != ("y", "x", "time"):
+        return None
+
+    coords = {
+        dim: dataset.coords[dim]
+        for dim in grid_dims
+        if dim in dataset.coords
+    }
+    shape = tuple(int(dataset.sizes[dim]) for dim in grid_dims)
+    return xr.DataArray(np.empty(shape, dtype=np.float64), dims=grid_dims, coords=coords)
 
 
 def _as_torch_tensor(value: Any, *, torch: Any, dtype: Any, device: Any) -> Any:

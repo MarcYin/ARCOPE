@@ -138,6 +138,59 @@ def test_scope_objective_raises_for_non_overlapping_time_coordinates():
         obj.evaluate({})
 
 
+def test_scope_objective_inject_params_adds_missing_fields_on_base_grid():
+    """New optimisation fields should not enter gridded SCOPE inputs as scalars."""
+    torch = pytest.importorskip("torch")
+    times = pd.date_range("2021-06-01", periods=4, freq="D")
+    base_ds = xr.Dataset(
+        {
+            "template": (
+                ("y", "x", "time"),
+                np.ones((2, 3, 4), dtype=np.float64),
+            )
+        },
+        coords={"y": [10, 11], "x": [20, 21, 22], "time": times},
+    )
+    obj = ScopeObjective(
+        base_dataset=base_ds,
+        observations=xr.Dataset({"target": ("time", np.ones(4))}, coords={"time": times}),
+        target_variables=["target"],
+    )
+    param = torch.tensor(2.0, dtype=torch.float64, requires_grad=True)
+
+    injected = obj._inject_params({"new_param": param})
+
+    assert injected["new_param"].dims == ("y", "x", "time")
+    assert injected["new_param"].shape == (2, 3, 4)
+    assert injected["new_param"].data.requires_grad is True
+    injected["new_param"].data.sum().backward()
+    assert float(param.grad) == pytest.approx(24.0)
+
+
+def test_scope_objective_inject_params_adds_missing_numeric_fields_on_base_grid():
+    """Non-tensor parameters should follow the same gridded insertion contract."""
+    times = pd.date_range("2021-06-01", periods=2, freq="D")
+    base_ds = xr.Dataset(
+        {
+            "template": (
+                ("y", "x", "time"),
+                np.ones((1, 2, 2), dtype=np.float64),
+            )
+        },
+        coords={"y": [10], "x": [20, 21], "time": times},
+    )
+    obj = ScopeObjective(
+        base_dataset=base_ds,
+        observations=xr.Dataset({"target": ("time", np.ones(2))}, coords={"time": times}),
+        target_variables=["target"],
+    )
+
+    injected = obj._inject_params({"new_param": 3.5})
+
+    assert injected["new_param"].dims == ("y", "x", "time")
+    np.testing.assert_allclose(injected["new_param"].values, 3.5)
+
+
 # ---------------------------------------------------------------------------
 # ParameterSet.inject_into_dataset test
 # ---------------------------------------------------------------------------

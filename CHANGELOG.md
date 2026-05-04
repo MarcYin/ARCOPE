@@ -6,6 +6,19 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-05-04
+
+### Fixed
+- `prepare_scope_dataset()` now explicitly broadcasts time-indexed field-scale
+  weather variables onto the SCOPE `y/x/time` grid before handing data to
+  `scope-rtm`.
+- `ScopeObjective._inject_params()` now adds missing optimisation parameter
+  fields with the base dataset's `y/x/time` shape instead of scalar variables.
+
+### Changed
+- Raised the optional SCOPE dependency floor to `scope-rtm>=0.4.4`, which fixes
+  upstream datetime/timedelta averaging in prepared SCOPE input datasets.
+
 ## [0.1.7] - 2026-05-04
 
 ### Fixed
@@ -158,7 +171,9 @@ All notable changes to arcope are documented here. This project follows
 - **CI**: GitHub Actions for tests (Python 3.9-3.14), docs build + deploy,
   and PyPI release via OIDC trusted publishing.
 
-[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/MarcYin/ARCOPE/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/MarcYin/ARCOPE/compare/v0.1.7...v0.1.8
+[0.1.7]: https://github.com/MarcYin/ARCOPE/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/MarcYin/ARCOPE/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/MarcYin/ARCOPE/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/MarcYin/ARCOPE/compare/v0.1.3...v0.1.4

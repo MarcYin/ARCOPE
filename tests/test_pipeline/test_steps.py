@@ -16,6 +16,7 @@ from arc_scope.pipeline.steps import (
     bridge_arc_to_scope,
     build_observation_dataset,
     fetch_weather,
+    prepare_scope_dataset,
     retrieve_arc,
     run_scope_simulation,
 )
@@ -157,6 +158,80 @@ def test_bridge_arc_to_scope_no_geotransform_raises(sample_arc_outputs):
     )
     with pytest.raises(ValueError, match="geotransform"):
         bridge_arc_to_scope(arc_result, year=2021)
+
+
+# ---------------------------------------------------------------------------
+# prepare_scope_dataset tests
+# ---------------------------------------------------------------------------
+
+
+def test_prepare_scope_dataset_broadcasts_time_weather_to_scope_grid(
+    monkeypatch, tmp_path
+):
+    """Field-scale weather should be explicit on the SCOPE y/x/time grid."""
+    captured: dict[str, xr.Dataset] = {}
+
+    def fake_prepare_scope_input_dataset(
+        *,
+        weather_ds,
+        observation_ds,
+        post_bio_da,
+        post_bio_scale_da,
+        scope_root_path,
+        scope_options,
+    ):
+        captured["weather_ds"] = weather_ds
+        return xr.Dataset({"Rin": weather_ds["Rin"]})
+
+    scope_module = types.ModuleType("scope")
+    scope_io_module = types.ModuleType("scope.io")
+    scope_prepare_module = types.ModuleType("scope.io.prepare")
+    scope_prepare_module.prepare_scope_input_dataset = fake_prepare_scope_input_dataset
+    scope_io_module.prepare = scope_prepare_module
+    scope_module.io = scope_io_module
+    monkeypatch.setitem(sys.modules, "scope", scope_module)
+    monkeypatch.setitem(sys.modules, "scope.io", scope_io_module)
+    monkeypatch.setitem(sys.modules, "scope.io.prepare", scope_prepare_module)
+
+    times = pd.date_range("2021-06-01", periods=3, freq="D")
+    post_bio_da = xr.DataArray(
+        np.ones((2, 3, 1, 3), dtype=np.float64),
+        dims=("y", "x", "band", "time"),
+        coords={"y": [10, 11], "x": [20, 21, 22], "band": ["LAI"], "time": times},
+    )
+    post_bio_scale_da = xr.DataArray(
+        np.ones((2, 3, 1), dtype=np.float64),
+        dims=("y", "x", "band"),
+        coords={"y": [10, 11], "x": [20, 21, 22], "band": ["SMC"]},
+    )
+    weather_ds = xr.Dataset(
+        {"Rin": ("time", np.array([500.0, 550.0, 600.0]))},
+        coords={"time": times},
+    )
+    observation_ds = xr.Dataset(coords={"time": times})
+    config = PipelineConfig(
+        geojson_path=str(TEST_FIELD_GEOJSON),
+        start_date="2021-06-01",
+        end_date="2021-06-03",
+        crop_type="wheat",
+        start_of_season=120,
+        year=2021,
+        output_dir=tmp_path,
+    )
+
+    prepared = prepare_scope_dataset(
+        post_bio_da,
+        post_bio_scale_da,
+        weather_ds,
+        observation_ds,
+        config,
+    )
+
+    rin = captured["weather_ds"]["Rin"]
+    assert rin.dims == ("y", "x", "time")
+    assert rin.sizes == {"y": 2, "x": 3, "time": 3}
+    np.testing.assert_allclose(rin.sel(y=10, x=20).values, [500.0, 550.0, 600.0])
+    assert prepared["Rin"].dims == ("y", "x", "time")
 
 
 # ---------------------------------------------------------------------------

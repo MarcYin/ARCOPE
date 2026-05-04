@@ -356,6 +356,7 @@ def prepare_scope_dataset(
     try:
         from scope.io.prepare import prepare_scope_input_dataset
 
+        weather_ds = _broadcast_weather_to_scope_grid(weather_ds, post_bio_da)
         dataset = prepare_scope_input_dataset(
             weather_ds=weather_ds,
             observation_ds=observation_ds,
@@ -369,6 +370,42 @@ def prepare_scope_dataset(
         raise ImportError(
             "SCOPE is required for simulation. Install with: pip install arcope[scope]"
         )
+
+
+def _broadcast_weather_to_scope_grid(
+    weather_ds: xr.Dataset,
+    post_bio_da: xr.DataArray,
+) -> xr.Dataset:
+    grid_template = _scope_grid_template(post_bio_da)
+    if grid_template is None:
+        return weather_ds
+
+    broadcasted = weather_ds.copy()
+    grid_dims = tuple(str(dim) for dim in grid_template.dims)
+    for name, data_array in weather_ds.data_vars.items():
+        if "time" not in data_array.dims:
+            continue
+        if all(dim in data_array.dims for dim in grid_dims):
+            continue
+
+        _, expanded = xr.broadcast(grid_template, data_array)
+        dim_order = grid_dims + tuple(dim for dim in expanded.dims if dim not in grid_dims)
+        broadcasted[name] = expanded.transpose(*dim_order)
+    return broadcasted
+
+
+def _scope_grid_template(post_bio_da: xr.DataArray) -> xr.DataArray | None:
+    grid_dims = tuple(dim for dim in ("y", "x") if dim in post_bio_da.sizes)
+    if not grid_dims:
+        return None
+
+    coords = {
+        dim: post_bio_da.coords[dim]
+        for dim in grid_dims
+        if dim in post_bio_da.coords
+    }
+    shape = tuple(int(post_bio_da.sizes[dim]) for dim in grid_dims)
+    return xr.DataArray(np.ones(shape, dtype=np.float64), dims=grid_dims, coords=coords)
 
 
 def run_scope_simulation(
