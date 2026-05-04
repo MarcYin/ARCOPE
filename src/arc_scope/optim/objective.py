@@ -370,8 +370,41 @@ class ScopeObjective:
         dtype: Any,
         device: Any,
     ) -> None:
+        # Accumulate chunk gradients at the physical-parameter boundary, then
+        # apply the parameter transform chain rule once at the end.
+        grad_inputs = [
+            (name, value)
+            for name, value in params.items()
+            if _is_torch_tensor(value)
+            and bool(getattr(value, "requires_grad", False))
+        ]
+        if not grad_inputs:
+            raise AutogradUnavailable(
+                "Streaming autograd loss is not connected to any optimisable "
+                "physical parameters."
+            )
+        grad_totals = {
+            name: torch.zeros_like(value)
+            for name, value in grad_inputs
+        }
+        saw_gradient = False
         offsets = {var: 0 for var in self._target_variables}
-        for output in self._iter_scope_torch_chunks(self._base_dataset, params):
+        outputs = iter(self._iter_scope_torch_chunks(self._base_dataset, params))
+        try:
+            output = next(outputs)
+        except StopIteration:
+            output = None
+
+        while output is not None:
+            # Some custom runners yield slices from a shared graph. Keep that
+            # graph only until the final yielded chunk, then release it.
+            try:
+                next_output = next(outputs)
+                retain_graph = True
+            except StopIteration:
+                next_output = None
+                retain_graph = False
+
             self._validate_torch_output(output)
             chunk_loss = None
             for var in self._target_variables:
@@ -389,11 +422,33 @@ class ScopeObjective:
                     loss = torch.sum(diff * diff) / counts[var]
                     chunk_loss = loss if chunk_loss is None else chunk_loss + loss
             if chunk_loss is not None:
-                # The transformed physical parameters are shared across chunk
-                # forwards. Retaining that tiny upstream graph avoids requiring
-                # one full graph over all SCOPE chunks.
-                chunk_loss.backward(retain_graph=True)
+                if not bool(getattr(chunk_loss, "requires_grad", False)):
+                    raise AutogradUnavailable(
+                        "Streaming chunk loss is detached from the optimisable "
+                        "parameters."
+                    )
+                grads = torch.autograd.grad(
+                    chunk_loss,
+                    tuple(value for _, value in grad_inputs),
+                    allow_unused=True,
+                    retain_graph=retain_graph,
+                )
+                for (name, _), grad in zip(grad_inputs, grads):
+                    if grad is not None:
+                        grad_totals[name] = grad_totals[name] + grad.detach()
+                        saw_gradient = True
             del output
+            output = next_output
+
+        if not saw_gradient:
+            raise AutogradUnavailable(
+                "Streaming autograd did not produce gradients for optimisable "
+                "parameters."
+            )
+        torch.autograd.backward(
+            tuple(value for _, value in grad_inputs),
+            grad_tensors=tuple(grad_totals[name] for name, _ in grad_inputs),
+        )
 
     def _iter_scope_torch_chunks(self, dataset: xr.Dataset, params: dict[str, Any]):
         iter_chunks = getattr(self._torch_scope_runner, "iter_chunks", None)

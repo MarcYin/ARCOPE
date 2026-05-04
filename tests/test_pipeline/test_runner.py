@@ -103,7 +103,7 @@ def test_save_scope_output_creates_file(tmp_path):
     assert output_path.suffix == ".nc"
 
     # Verify roundtrip
-    loaded = xr.open_dataset(output_path, engine="scipy")
+    loaded = xr.open_dataset(output_path)
     assert "reflectance" in loaded
     loaded.close()
 

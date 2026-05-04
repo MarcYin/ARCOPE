@@ -6,6 +6,22 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-05-04
+
+### Fixed
+- `build_observation_dataset()` now honours the documented Sentinel-2
+  local-solar-time overpass contract before computing solar geometry, avoiding
+  large UTC/LST shifts at western longitudes.
+- Streaming PyTorch MSE gradients now avoid retaining every chunk graph during
+  backward propagation, reducing autograd memory growth while preserving the
+  parameter-transform chain rule.
+- The SCOPE output roundtrip test now accepts both SciPy NetCDF3 fallback
+  output and NetCDF4 output from SCOPE's exporter.
+
+### Changed
+- Raised the optional SCOPE dependency floor to `scope-rtm>=0.4.3` and updated
+  the development lockfile/runtime target accordingly.
+
 ## [0.1.6] - 2026-05-03
 
 ### Fixed

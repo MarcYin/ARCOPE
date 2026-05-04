@@ -74,8 +74,49 @@ def test_build_observation_dataset_offsets_duplicate_days():
     )
     times = ds.indexes["time"]
     assert times.is_unique
-    assert str(times[0]) == "2021-05-30 10:30:00"
-    assert str(times[1]) == "2021-05-30 10:35:00"
+    assert times[1] - times[0] == pd.Timedelta(minutes=5)
+    assert ds.attrs["overpass_time_reference"] == "local solar time"
+    assert ds.attrs["time_coordinate_reference"] == "UTC"
+
+
+def test_build_observation_dataset_overpass_hour_is_local_solar_time(monkeypatch, tmp_path):
+    """overpass_hour should drive solar geometry as local solar time, not UTC."""
+    monkeypatch.setattr(
+        "arc_scope.pipeline.steps.load_geojson_centroid",
+        lambda _: (15.0, 0.0),
+    )
+
+    ds = build_observation_dataset(
+        doys=np.array([80]),
+        year=2021,
+        geojson_path=tmp_path / "field.geojson",
+        overpass_hour=12.0,
+    )
+
+    assert float(ds["solar_zenith_angle"].values[0]) < 1.0
+    assert pd.Timestamp(ds.indexes["time"][0]).hour == 11
+
+
+def test_build_observation_dataset_western_longitude_overpass_is_daytime(
+    monkeypatch, tmp_path
+):
+    """Western longitudes should not reinterpret Sentinel-2 LST as pre-dawn UTC."""
+    monkeypatch.setattr(
+        "arc_scope.pipeline.steps.load_geojson_centroid",
+        lambda _: (-96.0, 41.0),
+    )
+
+    ds = build_observation_dataset(
+        doys=np.array([150]),
+        year=2021,
+        geojson_path=tmp_path / "field.geojson",
+        overpass_hour=10.5,
+    )
+
+    timestamp = pd.Timestamp(ds.indexes["time"][0])
+    assert timestamp.hour == 16
+    assert timestamp.minute == 51
+    assert float(ds["solar_zenith_angle"].values[0]) < 45.0
 
 
 # ---------------------------------------------------------------------------

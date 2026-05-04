@@ -71,6 +71,33 @@ CROP_HEIGHT_CAP_M = {
 }
 
 
+def _equation_of_time_minutes(doy: int | float) -> float:
+    gamma = 2 * np.pi * (float(doy) - 1.0) / 365.0
+    return float(
+        229.18
+        * (
+            0.000075
+            + 0.001868 * np.cos(gamma)
+            - 0.032077 * np.sin(gamma)
+            - 0.014615 * np.cos(2 * gamma)
+            - 0.04089 * np.sin(2 * gamma)
+        )
+    )
+
+
+def _local_solar_time_to_utc(
+    year: int,
+    doy: int,
+    lon: float,
+    local_solar_hour: float,
+) -> datetime:
+    local_day = datetime(year, 1, 1) + timedelta(days=doy - 1)
+    utc_hour = local_solar_hour - (
+        _equation_of_time_minutes(doy) + 4.0 * float(lon)
+    ) / 60.0
+    return local_day + timedelta(hours=utc_hour)
+
+
 @dataclass
 class ArcResult:
     """Container for ARC retrieval outputs."""
@@ -211,8 +238,8 @@ def build_observation_dataset(
 
     Returns
     -------
-    xr.Dataset with variables for solar/viewing geometry and a ``delta_time``
-    variable for SCOPE's observation time grid.
+    xr.Dataset with variables for solar/viewing geometry and UTC-equivalent
+    ``time``/``delta_time`` coordinates for SCOPE's observation time grid.
     """
     lon, lat = load_geojson_centroid(geojson_path)
 
@@ -225,13 +252,21 @@ def build_observation_dataset(
         duplicate_index = seen_per_day.get(day, 0)
         seen_per_day[day] = duplicate_index + 1
 
-        dt = datetime(year, 1, 1) + timedelta(
-            days=day - 1,
-            hours=overpass_hour,
-            minutes=duplicate_index * duplicate_step_minutes,
+        local_solar_hour = overpass_hour + (
+            duplicate_index * duplicate_step_minutes / 60.0
         )
-        sza, saa = solar_position(lat, lon, dt)
-        times.append(np.datetime64(dt))
+        dt_utc = _local_solar_time_to_utc(
+            year,
+            day,
+            lon,
+            local_solar_hour,
+        )
+        sza, saa = solar_position(
+            lat,
+            lon,
+            dt_utc,
+        )
+        times.append(np.datetime64(dt_utc))
         szas.append(float(sza))
         saas.append(float(saa))
 
@@ -246,6 +281,10 @@ def build_observation_dataset(
             "delta_time": ("time", time_coords),
         },
         coords={"time": time_coords},
+        attrs={
+            "overpass_time_reference": "local solar time",
+            "time_coordinate_reference": "UTC",
+        },
     )
     return ds
 

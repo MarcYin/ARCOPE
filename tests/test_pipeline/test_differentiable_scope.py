@@ -142,7 +142,7 @@ def test_scope_objective_torch_runner_gets_params_without_dataset_injection():
     assert gradient.tolist() == pytest.approx([-6.0])
 
 
-def test_scope_objective_streams_chunk_losses_before_returning_gradient():
+def test_scope_objective_streams_chunk_losses_before_returning_gradient(monkeypatch):
     torch = pytest.importorskip("torch")
     base_ds = xr.Dataset({"template": ("sample", np.ones(5))})
     obs_ds = xr.Dataset({"target": ("sample", np.zeros(5))})
@@ -168,6 +168,15 @@ def test_scope_objective_streams_chunk_losses_before_returning_gradient():
                 self.chunk_sizes.append(stop - start)
                 yield {"target": scale * values[start:stop]}
 
+    original_grad = torch.autograd.grad
+    retain_graph_values = []
+
+    def checked_grad(*args, **kwargs):
+        retain_graph_values.append(kwargs.get("retain_graph"))
+        return original_grad(*args, **kwargs)
+
+    monkeypatch.setattr(torch.autograd, "grad", checked_grad)
+
     runner = StreamingRunner()
     objective = ScopeObjective(
         base_dataset=base_ds,
@@ -186,6 +195,8 @@ def test_scope_objective_streams_chunk_losses_before_returning_gradient():
     assert gradient.tolist() == pytest.approx([88.0])
     assert runner.iter_calls == 2
     assert runner.chunk_sizes == [2, 2, 1, 2, 2, 1]
+    assert len(retain_graph_values) == 3
+    assert retain_graph_values[-1] is False
 
 
 def test_scope_objective_streaming_spatial_selector_matches_full_torch_loss():

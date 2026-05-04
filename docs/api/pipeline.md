@@ -273,7 +273,9 @@ Convert ARC retrieval outputs to SCOPE-compatible DataArrays.
 
 Build an observation geometry dataset with solar zenith/azimuth angles computed from field location and overpass time.
 
-Optional keyword arguments: `viewing_zenith` (default 0.0), `viewing_azimuth` (default 0.0), `overpass_hour` (default 10.5 for Sentinel-2).
+Optional keyword arguments: `viewing_zenith` (default 0.0), `viewing_azimuth` (default 0.0), `overpass_hour` (default 10.5 local solar time for Sentinel-2).
+
+`overpass_hour` is interpreted as local solar time and converted to UTC-equivalent `time`/`delta_time` coordinates using the field longitude and equation of time before solar angles are computed.
 
 ### `fetch_weather(config, time_range=None)`
 

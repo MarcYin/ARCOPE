@@ -28,7 +28,7 @@ netcdf4 = ">=1.7.2,<2"
 [pypi-dependencies]
 arcope = { path = ".", editable = true }
 arc = { git = "https://github.com/MarcYin/ARC" }
-scope-rtm = ">=0.4.2, <0.5"
+scope-rtm = ">=0.4.3, <0.5"
 torch = ">=2.11.0, <3"
 cdsapi = ">=0.7.7, <0.8"
 mkdocs = ">=1.6.1, <2"
