@@ -356,7 +356,8 @@ def prepare_scope_dataset(
     try:
         from scope.io.prepare import prepare_scope_input_dataset
 
-        weather_ds = _broadcast_weather_to_scope_grid(weather_ds, post_bio_da)
+        weather_ds = _broadcast_to_scope_grid(weather_ds, post_bio_da)
+        observation_ds = _broadcast_to_scope_grid(observation_ds, post_bio_da)
         dataset = prepare_scope_input_dataset(
             weather_ds=weather_ds,
             observation_ds=observation_ds,
@@ -372,17 +373,17 @@ def prepare_scope_dataset(
         )
 
 
-def _broadcast_weather_to_scope_grid(
-    weather_ds: xr.Dataset,
+def _broadcast_to_scope_grid(
+    dataset: xr.Dataset,
     post_bio_da: xr.DataArray,
 ) -> xr.Dataset:
     grid_template = _scope_grid_template(post_bio_da)
     if grid_template is None:
-        return weather_ds
+        return dataset
 
-    broadcasted = weather_ds.copy()
+    broadcasted = dataset.copy()
     grid_dims = tuple(str(dim) for dim in grid_template.dims)
-    for name, data_array in weather_ds.data_vars.items():
+    for name, data_array in dataset.data_vars.items():
         if "time" not in data_array.dims:
             continue
         if all(dim in data_array.dims for dim in grid_dims):
@@ -392,6 +393,9 @@ def _broadcast_weather_to_scope_grid(
         dim_order = grid_dims + tuple(dim for dim in expanded.dims if dim not in grid_dims)
         broadcasted[name] = expanded.transpose(*dim_order)
     return broadcasted
+
+
+_broadcast_weather_to_scope_grid = _broadcast_to_scope_grid
 
 
 def _scope_grid_template(post_bio_da: xr.DataArray) -> xr.DataArray | None:
@@ -406,6 +410,54 @@ def _scope_grid_template(post_bio_da: xr.DataArray) -> xr.DataArray | None:
     }
     shape = tuple(int(post_bio_da.sizes[dim]) for dim in grid_dims)
     return xr.DataArray(np.ones(shape, dtype=np.float64), dims=grid_dims, coords=coords)
+
+
+def _seed_missing_parameter_variables(
+    dataset: xr.Dataset,
+    parameter_values: Mapping[str, Any],
+) -> xr.Dataset:
+    missing_names = [name for name in parameter_values if name not in dataset]
+    if not missing_names:
+        return dataset
+
+    seeded = dataset.copy()
+    template = _dataset_grid_template(seeded)
+    for name in missing_names:
+        if template is None:
+            seeded[name] = parameter_values[name]
+        else:
+            seeded[name] = _dataarray_like(template, 0.0)
+    return seeded
+
+
+def _dataset_grid_template(dataset: xr.Dataset) -> xr.DataArray | None:
+    grid_dims = tuple(dim for dim in ("y", "x", "time") if dim in dataset.sizes)
+    if grid_dims != ("y", "x", "time"):
+        return None
+
+    coords = {
+        dim: dataset.coords[dim]
+        for dim in grid_dims
+        if dim in dataset.coords
+    }
+    shape = tuple(int(dataset.sizes[dim]) for dim in grid_dims)
+    return xr.DataArray(np.empty(shape, dtype=np.float64), dims=grid_dims, coords=coords)
+
+
+def _dataarray_like(template: xr.DataArray, value: Any) -> xr.DataArray:
+    shape = tuple(template.shape)
+    raw = np.asarray(value)
+    if shape:
+        data = np.broadcast_to(raw, shape).copy()
+    else:
+        data = raw.reshape(())
+    return xr.DataArray(
+        data,
+        dims=template.dims,
+        coords=template.coords,
+        attrs=template.attrs,
+        name=template.name,
+    )
 
 
 def run_scope_simulation(
@@ -529,10 +581,10 @@ def run_scope_simulation_tensors(
     runner_dataset, _ = _prepare_torch_runner_dataset(scope_dataset, torch)
     parameter_values = {} if parameter_values is None else dict(parameter_values)
     if parameter_values:
-        runner_dataset = runner_dataset.copy()
-        for name in parameter_values:
-            if name not in runner_dataset:
-                runner_dataset[name] = 0.0
+        runner_dataset = _seed_missing_parameter_variables(
+            runner_dataset,
+            parameter_values,
+        )
 
     times = runner_dataset.coords["time"].values
     start_time = pd.Timestamp(times.min())
@@ -614,10 +666,10 @@ def iter_scope_simulation_tensor_chunks(
     runner_dataset, _ = _prepare_torch_runner_dataset(scope_dataset, torch)
     parameter_values = {} if parameter_values is None else dict(parameter_values)
     if parameter_values:
-        runner_dataset = runner_dataset.copy()
-        for name in parameter_values:
-            if name not in runner_dataset:
-                runner_dataset[name] = 0.0
+        runner_dataset = _seed_missing_parameter_variables(
+            runner_dataset,
+            parameter_values,
+        )
 
     times = runner_dataset.coords["time"].values
     start_time = pd.Timestamp(times.min())

@@ -181,6 +181,7 @@ def test_prepare_scope_dataset_broadcasts_time_weather_to_scope_grid(
         scope_options,
     ):
         captured["weather_ds"] = weather_ds
+        captured["observation_ds"] = observation_ds
         return xr.Dataset({"Rin": weather_ds["Rin"]})
 
     scope_module = types.ModuleType("scope")
@@ -208,7 +209,10 @@ def test_prepare_scope_dataset_broadcasts_time_weather_to_scope_grid(
         {"Rin": ("time", np.array([500.0, 550.0, 600.0]))},
         coords={"time": times},
     )
-    observation_ds = xr.Dataset(coords={"time": times})
+    observation_ds = xr.Dataset(
+        {"tts": ("time", np.array([30.0, 31.0, 32.0]))},
+        coords={"time": times},
+    )
     config = PipelineConfig(
         geojson_path=str(TEST_FIELD_GEOJSON),
         start_date="2021-06-01",
@@ -231,6 +235,10 @@ def test_prepare_scope_dataset_broadcasts_time_weather_to_scope_grid(
     assert rin.dims == ("y", "x", "time")
     assert rin.sizes == {"y": 2, "x": 3, "time": 3}
     np.testing.assert_allclose(rin.sel(y=10, x=20).values, [500.0, 550.0, 600.0])
+    tts = captured["observation_ds"]["tts"]
+    assert tts.dims == ("y", "x", "time")
+    assert tts.sizes == {"y": 2, "x": 3, "time": 3}
+    np.testing.assert_allclose(tts.sel(y=11, x=22).values, [30.0, 31.0, 32.0])
     assert prepared["Rin"].dims == ("y", "x", "time")
 
 

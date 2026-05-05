@@ -19,6 +19,7 @@ from arc_scope.pipeline.optimization import (
 from arc_scope.pipeline.steps import (
     _TensorScopeGridDataModule,
     _resolve_scope_chunk_size,
+    _seed_missing_parameter_variables,
     _to_torch_tensor_preserving_graph,
 )
 
@@ -108,6 +109,59 @@ def test_tensor_data_module_overlays_parameters_without_xarray_tensor_storage():
     assert tuple(batch["fqe"].shape) == (4,)
     batch["fqe"].sum().backward()
     assert float(parameter.grad) == pytest.approx(4.0)
+
+
+def test_missing_tensor_runner_parameter_placeholder_uses_scope_grid():
+    dataset = xr.Dataset(
+        {
+            "LAI": (("y", "x", "time"), np.full((2, 1, 3), 3.0)),
+        },
+        coords={"y": [10, 11], "x": [20], "time": [0, 1, 2]},
+    )
+
+    seeded = _seed_missing_parameter_variables(
+        dataset,
+        {"Vcmax25": 40.0},
+    )
+
+    assert seeded["Vcmax25"].dims == ("y", "x", "time")
+    assert seeded["Vcmax25"].sizes == {"y": 2, "x": 1, "time": 3}
+
+
+def test_missing_tensor_runner_parameter_is_broadcast_in_tensor_batches():
+    torch = pytest.importorskip("torch")
+    dataset = xr.Dataset(
+        {
+            "LAI": (("y", "x", "time"), np.full((2, 1, 3), 3.0)),
+        },
+        coords={"y": [10, 11], "x": [20], "time": [0, 1, 2]},
+    )
+
+    parameter = torch.tensor(40.0, dtype=torch.float64, requires_grad=True)
+    seeded = _seed_missing_parameter_variables(
+        dataset,
+        {"Vcmax25": parameter},
+    )
+
+    class Config(SimpleNamespace):
+        def chunks(self, total):
+            return [slice(0, total)]
+
+    data_module = _TensorScopeGridDataModule(
+        seeded,
+        Config(dtype=torch.float64, torch_device=lambda: "cpu"),
+        required_vars=["LAI", "Vcmax25"],
+        torch_module=torch,
+        parameter_values={"Vcmax25": parameter},
+    )
+
+    batch = next(data_module.iter_batches())
+
+    assert tuple(batch["Vcmax25"].shape) == (6,)
+    assert batch["Vcmax25"].requires_grad is True
+    assert batch["Vcmax25"].detach().cpu().numpy().tolist() == pytest.approx([40.0] * 6)
+    batch["Vcmax25"].sum().backward()
+    assert float(parameter.grad) == pytest.approx(6.0)
 
 
 def test_scope_objective_torch_runner_gets_params_without_dataset_injection():

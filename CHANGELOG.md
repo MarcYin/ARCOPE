@@ -6,6 +6,16 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-05-05
+
+### Fixed
+- `prepare_scope_dataset()` now broadcasts time-indexed observation geometry
+  variables, such as `tts`, `tto`, and `psi`, onto the SCOPE `y/x/time` grid
+  before calling `scope-rtm`.
+- Tensor-preserving SCOPE runners now seed missing optimisation parameter
+  variables with SCOPE-grid placeholders instead of scalar fields, allowing the
+  tensor data module to broadcast the active parameter values during batches.
+
 ## [0.1.8] - 2026-05-04
 
 ### Fixed
