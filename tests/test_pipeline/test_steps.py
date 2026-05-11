@@ -242,6 +242,106 @@ def test_prepare_scope_dataset_broadcasts_time_weather_to_scope_grid(
     assert prepared["Rin"].dims == ("y", "x", "time")
 
 
+def test_prepare_scope_dataset_seeds_energy_balance_defaults_after_prepare_retry(
+    monkeypatch,
+    tmp_path,
+):
+    """calc_ebal validation in scope-rtm should not block arcope defaults."""
+    prepare_options: list[dict[str, object]] = []
+    times = pd.date_range("2021-06-01", periods=2, freq="D")
+
+    def fake_prepare_scope_input_dataset(
+        *,
+        weather_ds,
+        observation_ds,
+        post_bio_da,
+        post_bio_scale_da,
+        scope_root_path,
+        scope_options,
+    ):
+        prepare_options.append(dict(scope_options))
+        if scope_options.get("calc_ebal"):
+            raise ValueError(
+                "Dataset validation failed:\n"
+                "- Missing required variable Ca: Ambient CO2 concentration.\n"
+                "- Missing required variable Cd: Drag coefficient.\n"
+                "- Missing required variable d, h, rbs, rss, rwc, z, z0m"
+            )
+        return xr.Dataset(
+            {
+                "Rin": (("y", "x", "time"), np.full((1, 2, 2), 625.0)),
+                "tts": (("y", "x", "time"), np.full((1, 2, 2), 33.0)),
+                "LAI": (("y", "x", "time"), np.full((1, 2, 2), 3.0)),
+                "Cab": (("y", "x", "time"), np.full((1, 2, 2), 42.0)),
+                "Cw": (("y", "x", "time"), np.full((1, 2, 2), 0.015)),
+                "SMC": (("y", "x", "time"), np.full((1, 2, 2), 0.25)),
+            },
+            coords={"y": [0], "x": [0, 1], "time": times},
+        )
+
+    def fake_spectral_forcing(*, rin, sza, time_coord, atmos_file, scope_root_path):
+        return xr.Dataset(
+            {
+                "Esun_sw": rin.expand_dims(wavelength=[680.0]),
+                "Esky_sw": rin.expand_dims(wavelength=[680.0]) * 0.2,
+                "Esun_": rin.expand_dims(excitation_wavelength=[740.0]),
+                "Esky_": rin.expand_dims(excitation_wavelength=[740.0]) * 0.2,
+            }
+        )
+
+    scope_module = types.ModuleType("scope")
+    scope_io_module = types.ModuleType("scope.io")
+    scope_prepare_module = types.ModuleType("scope.io.prepare")
+    scope_prepare_module.prepare_scope_input_dataset = fake_prepare_scope_input_dataset
+    scope_io_module.prepare = scope_prepare_module
+    scope_module.io = scope_io_module
+    monkeypatch.setitem(sys.modules, "scope", scope_module)
+    monkeypatch.setitem(sys.modules, "scope.io", scope_io_module)
+    monkeypatch.setitem(sys.modules, "scope.io.prepare", scope_prepare_module)
+    monkeypatch.setattr(
+        "arc_scope.pipeline.steps.build_scope_spectral_forcing",
+        fake_spectral_forcing,
+    )
+
+    post_bio_da = xr.DataArray(
+        np.ones((1, 2, 1, 2), dtype=np.float64),
+        dims=("y", "x", "band", "time"),
+        coords={"y": [0], "x": [0, 1], "band": ["LAI"], "time": times},
+    )
+    post_bio_scale_da = xr.DataArray(
+        np.ones((1, 2, 1), dtype=np.float64),
+        dims=("y", "x", "band"),
+        coords={"y": [0], "x": [0, 1], "band": ["SMC"]},
+    )
+    config = PipelineConfig(
+        geojson_path=str(TEST_FIELD_GEOJSON),
+        start_date="2021-06-01",
+        end_date="2021-06-02",
+        crop_type="soybean",
+        start_of_season=120,
+        year=2021,
+        scope_workflow="fluorescence",
+        scope_options={"calc_ebal": 1},
+        output_dir=tmp_path,
+    )
+
+    prepared = prepare_scope_dataset(
+        post_bio_da,
+        post_bio_scale_da,
+        xr.Dataset({"Rin": ("time", np.full(2, 625.0))}, coords={"time": times}),
+        xr.Dataset({"tts": ("time", np.full(2, 33.0))}, coords={"time": times}),
+        config,
+    )
+
+    assert [options["calc_ebal"] for options in prepare_options] == [1, 0]
+    for name in ("Ca", "Oa", "Cd", "rwc", "z0m", "d", "h", "rss", "rbs"):
+        assert name in prepared
+        assert prepared[name].dims == ("y", "x", "time")
+        assert bool(np.isfinite(prepared[name]).all().item())
+    assert "fqe" in prepared
+    assert "Esun_sw" in prepared
+
+
 # ---------------------------------------------------------------------------
 # fetch_weather tests
 # ---------------------------------------------------------------------------

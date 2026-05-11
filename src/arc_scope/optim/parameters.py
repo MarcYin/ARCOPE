@@ -14,6 +14,11 @@ from typing import Sequence
 import numpy as np
 import xarray as xr
 
+from arc_scope.utils.xarray import (
+    dataarray_like as _dataarray_like,
+    dataset_grid_template as _dataset_grid_template,
+)
+
 
 @dataclass
 class ParameterSpec:
@@ -206,8 +211,12 @@ class ParameterSet:
             if name in ds:
                 ds[name] = ds[name] * 0 + val  # Broadcast scalar to existing shape
             else:
-                # Add as a new scalar variable
-                ds[name] = val
+                template = _dataset_grid_template(ds)
+                ds[name] = (
+                    _dataarray_like(template, val)
+                    if template is not None
+                    else val
+                )
         return ds
 
 

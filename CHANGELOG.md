@@ -6,6 +6,23 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-05-11
+
+### Fixed
+- `ParameterSet.inject_into_dataset()` now adds missing optimisation parameters
+  on the SCOPE `y/x/time` grid when available, matching the tensor-preserving
+  optimisation injection paths used before the final forward run.
+- Streaming PyTorch MSE gradients now backpropagate each yielded SCOPE chunk
+  before advancing the chunk iterator, avoiding autograd version-counter
+  failures when upstream chunk outputs share optics-path views.
+- `prepare_scope_dataset()` now seeds energy-balance defaults for explicit
+  `calc_ebal=1` configurations and retries SCOPE input preparation when
+  upstream validation rejects variables that ARC-SCOPE derives locally.
+
+### Changed
+- Raised the optional SCOPE dependency floor to `scope-rtm>=0.4.5`, the release
+  with the small-grid energy-balance fast path needed by optimisation runs.
+
 ## [0.1.9] - 2026-05-05
 
 ### Fixed

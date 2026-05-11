@@ -190,7 +190,7 @@ SCOPE's simulation core runs on PyTorch (`scope-rtm` package). The bridge and we
 This separation means:
 
 - Bridge conversion, weather fetching, and data preparation work without PyTorch
-- SCOPE simulation requires `torch >= 2.2` and `scope-rtm >= 0.4.4`
+- SCOPE simulation requires `torch >= 2.2` and `scope-rtm >= 0.4.5`
 - The optimisation module bridges both worlds: `ScopeObjective.evaluate()` is numpy-compatible for reported initial/final losses, while `evaluate_torch()` uses the tensor-preserving SCOPE runner and `evaluate_value_and_gradient()` uses the streaming tensor runner for scipy's `jac` hook
 - `run_scope_simulation_tensors()` calls SCOPE's raw tensor-returning workflow methods before xarray/NetCDF assembly, because dataset assembly is an export boundary that detaches tensors
 - Both the normal runner and tensor-preserving optimisation runner pass

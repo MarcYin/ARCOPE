@@ -203,6 +203,7 @@ def test_scope_objective_streams_chunk_losses_before_returning_gradient(monkeypa
     params = ParameterSet(
         [ParameterSpec("scale", initial=2.0, lower=0.1, upper=10.0, transform="log")]
     )
+    events = []
 
     class StreamingRunner:
         def __init__(self):
@@ -220,6 +221,7 @@ def test_scope_objective_streams_chunk_losses_before_returning_gradient(monkeypa
             values = torch.arange(1, 6, dtype=torch.float64)
             for start, stop in ((0, 2), (2, 4), (4, 5)):
                 self.chunk_sizes.append(stop - start)
+                events.append(f"yield:{start}:{stop}")
                 yield {"target": scale * values[start:stop]}
 
     original_grad = torch.autograd.grad
@@ -227,6 +229,7 @@ def test_scope_objective_streams_chunk_losses_before_returning_gradient(monkeypa
 
     def checked_grad(*args, **kwargs):
         retain_graph_values.append(kwargs.get("retain_graph"))
+        events.append("grad")
         return original_grad(*args, **kwargs)
 
     monkeypatch.setattr(torch.autograd, "grad", checked_grad)
@@ -250,7 +253,18 @@ def test_scope_objective_streams_chunk_losses_before_returning_gradient(monkeypa
     assert runner.iter_calls == 2
     assert runner.chunk_sizes == [2, 2, 1, 2, 2, 1]
     assert len(retain_graph_values) == 3
-    assert retain_graph_values[-1] is False
+    assert retain_graph_values == [True, True, True]
+    assert events == [
+        "yield:0:2",
+        "yield:2:4",
+        "yield:4:5",
+        "yield:0:2",
+        "grad",
+        "yield:2:4",
+        "grad",
+        "yield:4:5",
+        "grad",
+    ]
 
 
 def test_scope_objective_streaming_spatial_selector_matches_full_torch_loss():

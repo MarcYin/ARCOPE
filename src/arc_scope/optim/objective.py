@@ -15,6 +15,10 @@ import pandas as pd
 import xarray as xr
 
 from arc_scope.optim.parameters import ParameterSet
+from arc_scope.utils.xarray import (
+    dataarray_like as _dataarray_like,
+    dataset_grid_template as _dataset_grid_template,
+)
 
 
 class AutogradUnavailable(RuntimeError):
@@ -389,22 +393,11 @@ class ScopeObjective:
         }
         saw_gradient = False
         offsets = {var: 0 for var in self._target_variables}
-        outputs = iter(self._iter_scope_torch_chunks(self._base_dataset, params))
-        try:
-            output = next(outputs)
-        except StopIteration:
-            output = None
-
-        while output is not None:
-            # Some custom runners yield slices from a shared graph. Keep that
-            # graph only until the final yielded chunk, then release it.
-            try:
-                next_output = next(outputs)
-                retain_graph = True
-            except StopIteration:
-                next_output = None
-                retain_graph = False
-
+        for output in self._iter_scope_torch_chunks(self._base_dataset, params):
+            # Backpropagate each yielded chunk before advancing the iterator.
+            # scope-rtm may yield views into shared optics tensors; asking for
+            # the next chunk first can let downstream in-place updates advance
+            # the current chunk's autograd version counter before its backward.
             self._validate_torch_output(output)
             chunk_loss = None
             for var in self._target_variables:
@@ -431,14 +424,13 @@ class ScopeObjective:
                     chunk_loss,
                     tuple(value for _, value in grad_inputs),
                     allow_unused=True,
-                    retain_graph=retain_graph,
+                    retain_graph=True,
                 )
                 for (name, _), grad in zip(grad_inputs, grads):
                     if grad is not None:
                         grad_totals[name] = grad_totals[name] + grad.detach()
                         saw_gradient = True
             del output
-            output = next_output
 
         if not saw_gradient:
             raise AutogradUnavailable(
@@ -1069,36 +1061,6 @@ def _as_xarray_torch_duck_array(value: Any) -> Any:
         except AttributeError:
             pass
     return value
-
-
-def _dataarray_like(template: xr.DataArray, value: Any) -> xr.DataArray:
-    shape = tuple(template.shape)
-    raw = np.asarray(value)
-    if shape:
-        data = np.broadcast_to(raw, shape).copy()
-    else:
-        data = raw.reshape(())
-    return xr.DataArray(
-        data,
-        dims=template.dims,
-        coords=template.coords,
-        attrs=template.attrs,
-        name=template.name,
-    )
-
-
-def _dataset_grid_template(dataset: xr.Dataset) -> xr.DataArray | None:
-    grid_dims = tuple(dim for dim in ("y", "x", "time") if dim in dataset.sizes)
-    if grid_dims != ("y", "x", "time"):
-        return None
-
-    coords = {
-        dim: dataset.coords[dim]
-        for dim in grid_dims
-        if dim in dataset.coords
-    }
-    shape = tuple(int(dataset.sizes[dim]) for dim in grid_dims)
-    return xr.DataArray(np.empty(shape, dtype=np.float64), dims=grid_dims, coords=coords)
 
 
 def _as_torch_tensor(value: Any, *, torch: Any, dtype: Any, device: Any) -> Any:

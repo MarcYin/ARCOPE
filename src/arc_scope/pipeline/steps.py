@@ -22,6 +22,10 @@ from arc_scope.weather.radiation import build_scope_spectral_forcing
 from arc_scope.utils.geometry import solar_position
 from arc_scope.utils.io import load_geojson_bounds, load_geojson_centroid
 from arc_scope.utils.types import PathLike
+from arc_scope.utils.xarray import (
+    dataarray_like as _dataarray_like,
+    dataset_grid_template as _dataset_grid_template,
+)
 
 ENERGY_BALANCE_REQUIRED_VARS = (
     "Cab",
@@ -358,14 +362,26 @@ def prepare_scope_dataset(
 
         weather_ds = _broadcast_to_scope_grid(weather_ds, post_bio_da)
         observation_ds = _broadcast_to_scope_grid(observation_ds, post_bio_da)
-        dataset = prepare_scope_input_dataset(
-            weather_ds=weather_ds,
-            observation_ds=observation_ds,
-            post_bio_da=post_bio_da,
-            post_bio_scale_da=post_bio_scale_da,
-            scope_root_path=config.scope_root_path,
-            scope_options=config.resolved_scope_options,
-        )
+        try:
+            dataset = prepare_scope_input_dataset(
+                weather_ds=weather_ds,
+                observation_ds=observation_ds,
+                post_bio_da=post_bio_da,
+                post_bio_scale_da=post_bio_scale_da,
+                scope_root_path=config.scope_root_path,
+                scope_options=config.resolved_scope_options,
+            )
+        except ValueError as exc:
+            if not _is_energy_balance_validation_error(exc, config):
+                raise
+            dataset = prepare_scope_input_dataset(
+                weather_ds=weather_ds,
+                observation_ds=observation_ds,
+                post_bio_da=post_bio_da,
+                post_bio_scale_da=post_bio_scale_da,
+                scope_root_path=config.scope_root_path,
+                scope_options=_prepare_scope_options_without_ebal_validation(config),
+            )
         return _augment_scope_dataset(dataset, config)
     except ImportError:
         raise ImportError(
@@ -428,36 +444,6 @@ def _seed_missing_parameter_variables(
         else:
             seeded[name] = _dataarray_like(template, 0.0)
     return seeded
-
-
-def _dataset_grid_template(dataset: xr.Dataset) -> xr.DataArray | None:
-    grid_dims = tuple(dim for dim in ("y", "x", "time") if dim in dataset.sizes)
-    if grid_dims != ("y", "x", "time"):
-        return None
-
-    coords = {
-        dim: dataset.coords[dim]
-        for dim in grid_dims
-        if dim in dataset.coords
-    }
-    shape = tuple(int(dataset.sizes[dim]) for dim in grid_dims)
-    return xr.DataArray(np.empty(shape, dtype=np.float64), dims=grid_dims, coords=coords)
-
-
-def _dataarray_like(template: xr.DataArray, value: Any) -> xr.DataArray:
-    shape = tuple(template.shape)
-    raw = np.asarray(value)
-    if shape:
-        data = np.broadcast_to(raw, shape).copy()
-    else:
-        data = raw.reshape(())
-    return xr.DataArray(
-        data,
-        dims=template.dims,
-        coords=template.coords,
-        attrs=template.attrs,
-        name=template.name,
-    )
 
 
 def run_scope_simulation(
@@ -1093,6 +1079,23 @@ def _validate_hidden_energy_balance_inputs(scope_dataset: xr.Dataset) -> None:
         )
 
 
+def _uses_energy_balance(config: PipelineConfig) -> bool:
+    return (
+        config.scope_workflow == "energy-balance"
+        or _as_bool_option(config.resolved_scope_options.get("calc_ebal", False))
+    )
+
+
+def _is_energy_balance_validation_error(exc: ValueError, config: PipelineConfig) -> bool:
+    return _uses_energy_balance(config) and "Missing required variable" in str(exc)
+
+
+def _prepare_scope_options_without_ebal_validation(config: PipelineConfig) -> dict[str, Any]:
+    scope_options = dict(config.resolved_scope_options)
+    scope_options["calc_ebal"] = 0
+    return scope_options
+
+
 def _augment_scope_dataset(dataset: xr.Dataset, config: PipelineConfig) -> xr.Dataset:
     """Add repo-owned forcing variables needed by richer SCOPE workflows.
 
@@ -1111,7 +1114,7 @@ def _augment_scope_dataset(dataset: xr.Dataset, config: PipelineConfig) -> xr.Da
     - ``energy-balance``: upstream coupled fluorescence + thermal solvers
     """
     scope_options = config.resolved_scope_options
-    is_energy_balance = config.scope_workflow == "energy-balance"
+    is_energy_balance = _uses_energy_balance(config)
     needs_fluorescence = bool(scope_options.get("calc_fluor"))
     needs_thermal = bool(scope_options.get("calc_planck"))
     needs_spectral_forcing = needs_fluorescence or needs_thermal or is_energy_balance

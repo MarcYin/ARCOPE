@@ -75,14 +75,14 @@ arc-scope-optimization-examples = "arc_scope.experiments.optimization_examples:m
 # ARC separately with:
 #   pip install git+https://github.com/MarcYin/ARC
 scope = [
-    "scope-rtm>=0.4.4",
+    "scope-rtm>=0.4.5",
     "torch>=2.2",
 ]
 weather = [
     "cdsapi>=0.6",
 ]
 optim = [
-    "scope-rtm>=0.4.4",
+    "scope-rtm>=0.4.5",
     "torch>=2.2",
 ]
 all = [

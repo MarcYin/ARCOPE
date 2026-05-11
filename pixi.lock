@@ -170,7 +170,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/94/ba/24e5ebb7c1c82e74c4e4f33b2112a5573ddc703915b13a073737b59b86e0/rpds_py-0.30.0-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/01/18/d154dc1638803adf987910cdd07097d9c526663a55666a97c124d09fb96a/scikit_learn-1.8.0-cp311-cp311-macosx_12_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/f7/58/bccc2861b305abdd1b8663d6130c0b3d7cc22e8d86663edbc8401bfd40d4/scipy-1.17.1-cp311-cp311-macosx_12_0_arm64.whl
-      - pypi: https://files.pythonhosted.org/packages/79/53/69f637d93004d66c1cfacc639d121413e9e6a17b1eeeb2db77b2e2f65b99/scope_rtm-0.4.4-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/b9/b6/387d1b8851ca625923264dafee8e0fafad8676629f81b7340b39357696a0/scope_rtm-0.4.5-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e1/e3/c164c88b2e5ce7b24d667b9bd83589cf4f3520d97cad01534cd3c4f55fdb/setuptools-81.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4f/ce/28fab8c772ce5db23a0d86bf0adaee0c4c79d5ad1db766055fa3dab442e2/shapely-2.1.2-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl
@@ -230,17 +230,17 @@ packages:
   - eof @ https://github.com/profLewis/eof/archive/refs/heads/main.zip
 - pypi: ./
   name: arcope
-  version: 0.1.7.post0
-  sha256: 3624ad37a145a72d70472cd78f07bde9327a73b6c8da19dd0613dfa1425392bd
+  version: 0.1.9.post0
+  sha256: 5286642074f89498efb0fbf4f73224f08fb0439e86ad0e2ebc7bfe7f1fe8dd84
   requires_dist:
   - numpy>=1.24
   - xarray>=2023.1
   - scipy>=1.11
   - pandas>=2.0
-  - scope-rtm>=0.4.4 ; extra == 'scope'
+  - scope-rtm>=0.4.5 ; extra == 'scope'
   - torch>=2.2 ; extra == 'scope'
   - cdsapi>=0.6 ; extra == 'weather'
-  - scope-rtm>=0.4.4 ; extra == 'optim'
+  - scope-rtm>=0.4.5 ; extra == 'optim'
   - torch>=2.2 ; extra == 'optim'
   - arcope[optim,scope,weather] ; extra == 'all'
   - pytest>=8.0 ; extra == 'dev'
@@ -2422,10 +2422,10 @@ packages:
   - ruff>=0.12.0 ; extra == 'dev'
   - cython-lint>=0.12.2 ; extra == 'dev'
   requires_python: '>=3.11'
-- pypi: https://files.pythonhosted.org/packages/79/53/69f637d93004d66c1cfacc639d121413e9e6a17b1eeeb2db77b2e2f65b99/scope_rtm-0.4.4-py3-none-any.whl
+- pypi: https://files.pythonhosted.org/packages/b9/b6/387d1b8851ca625923264dafee8e0fafad8676629f81b7340b39357696a0/scope_rtm-0.4.5-py3-none-any.whl
   name: scope-rtm
-  version: 0.4.4
-  sha256: d94e7939be95d9cb1d98848087d6fdd7e20738761e4c18b37ff29be8ff0da859
+  version: 0.4.5
+  sha256: 117b37e25d30effad3ce434c77d314024eefc84a8389cc0f3879e4f451c7ad67
   requires_dist:
   - torch>=2.2,<3
   - numpy>=1.26,<3

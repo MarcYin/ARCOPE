@@ -89,7 +89,7 @@ named = params.from_array(x)  # {"fqe": 0.01, "rss": 500.0}
 
 **`to_torch(device="cpu", dtype="float64")`** -- Create a PyTorch tensor with `requires_grad=True` for gradient-based optimisation. Returns a tensor of shape `(n_optimisable,)` in unconstrained space. Requires `torch`.
 
-**`inject_into_dataset(dataset, values=None)`** -- Write parameter values into an `xr.Dataset`. If `values` is `None`, uses the initial values from each spec. Existing variables are broadcast-updated; new variables are added as scalars.
+**`inject_into_dataset(dataset, values=None)`** -- Write parameter values into an `xr.Dataset`. If `values` is `None`, uses the initial values from each spec. Existing variables are broadcast-updated; new variables are added on the SCOPE `y/x/time` grid when available, otherwise as scalars.
 
 ```python
 ds = params.inject_into_dataset(scope_dataset, {"fqe": 0.02, "rss": 300.0})

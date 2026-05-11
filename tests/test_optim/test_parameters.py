@@ -1,7 +1,9 @@
 """Tests for optimisation parameter containers."""
 
 import numpy as np
+import pandas as pd
 import pytest
+import xarray as xr
 
 from arc_scope.optim.parameters import ParameterSet, ParameterSpec
 
@@ -56,3 +58,31 @@ def test_parameter_set_roundtrip():
     arr = params.to_array()
     result = params.from_array(arr)
     assert result["fqe"] == pytest.approx(0.01, rel=1e-5)
+
+
+def test_parameter_set_injects_missing_parameter_on_scope_grid():
+    ds = xr.Dataset(
+        {
+            "lai": (
+                ("y", "x", "time"),
+                np.ones((2, 3, 4), dtype=float),
+            ),
+        },
+        coords={
+            "y": [10.0, 20.0],
+            "x": [100.0, 200.0, 300.0],
+            "time": pd.date_range("2021-06-01", periods=4),
+        },
+    )
+    params = ParameterSet([
+        ParameterSpec("rss", initial=500.0, lower=10.0, upper=5000.0),
+    ])
+
+    injected = params.inject_into_dataset(ds)
+
+    assert injected["rss"].dims == ("y", "x", "time")
+    assert injected["rss"].shape == (2, 3, 4)
+    np.testing.assert_allclose(injected["rss"].values, 500.0)
+    np.testing.assert_array_equal(injected["rss"].coords["y"], ds.coords["y"])
+    np.testing.assert_array_equal(injected["rss"].coords["x"], ds.coords["x"])
+    np.testing.assert_array_equal(injected["rss"].coords["time"], ds.coords["time"])
