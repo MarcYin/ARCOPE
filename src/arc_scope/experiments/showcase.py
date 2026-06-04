@@ -711,7 +711,7 @@ h2{{ font-size:0.95rem; font-weight:600; color:var(--muted); text-transform:uppe
   <!-- 3: Radiation -->
   <div class="panel"><h2>3 &middot; Radiation partitioning</h2>
     <p class="note">Total shortwave (Rin) is split into direct beam and diffuse sky components
-    using the BRL clearness-index model. The diffuse fraction controls how much light
+    using the Erbs (1982) clearness-index model. The diffuse fraction controls how much light
     penetrates deep into the canopy.</p>
   </div>
   <div class="row c2">

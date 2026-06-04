@@ -6,6 +6,27 @@ All notable changes to arcope are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-06-04
+
+### Fixed
+- Shortwave direct/diffuse partitioning (`arc_scope.weather.radiation`) replaced
+  the Boland-Ridley-Lauret (BRL) *full-model* logistic coefficients used in a
+  `kt`-only form with the properly-calibrated Erbs (1982) `kt`-only correlation.
+  The BRL coefficients (`-5.38`, `6.63`) were fit jointly with four additional
+  predictors (solar altitude, apparent solar time, daily clearness, persistence);
+  applied to `kt` alone they over-predicted the diffuse fraction badly (~0.67 vs
+  ~0.27 on clear days), under-representing the direct beam by more than half. This
+  biased the SCOPE `Esun_`/`Esky_`/`Esun_sw`/`Esky_sw` forcing for every
+  fluorescence and energy-balance run — affecting sunlit/shaded canopy fractions,
+  the hotspot, SIF, and leaf/soil temperatures. Erbs agrees with the full
+  five-predictor BRL and with SCOPE's own standard-atmosphere split (~0.27-0.28).
+  Spectral shape and broadband (`Rin`-conserving) magnitude were already faithful;
+  only the direct/diffuse split changed.
+
+### Removed
+- `diffuse_fraction_brl()` (miscalibrated for single-predictor use); replaced by
+  `diffuse_fraction_erbs()`.
+
 ## [0.1.10] - 2026-05-11
 
 ### Fixed

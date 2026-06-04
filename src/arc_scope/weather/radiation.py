@@ -3,9 +3,8 @@
 SCOPE's fluorescence and energy-balance workflows require spectrally-resolved
 direct (``Esun_sw``) and diffuse (``Esky_sw``) irradiance on its wavelength
 grid.  This module partitions total incoming shortwave (``Rin``) into these
-components using the BRL (Boland-Ridley-Lauret) diffuse fraction model and
-rescales the bundled SCOPE reference spectra onto the requested wavelength
-grids.
+components using the Erbs (1982) diffuse fraction model and rescales the bundled
+SCOPE reference spectra onto the requested wavelength grids.
 """
 
 from __future__ import annotations
@@ -17,27 +16,36 @@ import numpy as np
 import xarray as xr
 
 
-def diffuse_fraction_brl(
-    kt: np.ndarray,
-    *,
-    a: float = -5.38,
-    b: float = 6.63,
-    c: float = 0.006,
-    d: float = -0.007,
-) -> np.ndarray:
-    """Estimate diffuse fraction using the BRL logistic model.
+def diffuse_fraction_erbs(kt: np.ndarray) -> np.ndarray:
+    """Estimate diffuse fraction from the clearness index (Erbs et al., 1982).
+
+    A single-predictor (``kt``-only) correlation calibrated for hourly data:
+
+        kt <= 0.22      kd = 1.0 - 0.09*kt
+        0.22 < kt<=0.80 kd = 0.9511 - 0.1604*kt + 4.388*kt^2
+                              - 16.638*kt^3 + 12.336*kt^4
+        kt > 0.80       kd = 0.165
+
+    This replaces the previous use of the Boland-Ridley-Lauret (BRL) *logistic*
+    coefficients in a ``kt``-only form. Those coefficients were fit jointly with
+    four other predictors (solar altitude, apparent solar time, daily clearness,
+    persistence); applying them to ``kt`` alone is not valid and over-predicts the
+    diffuse fraction badly (~0.67 vs ~0.27 on clear days). Erbs is properly
+    calibrated for ``kt`` alone and agrees with the full BRL and with SCOPE's own
+    standard-atmosphere split (~0.27-0.28 diffuse on clear days).
 
     Parameters
     ----------
     kt:
-        Clearness index (Rin / extraterrestrial irradiance), clipped to [0, 1].
+        Clearness index (Rin / horizontal extraterrestrial irradiance), [0, 1].
 
     Returns
     -------
     Diffuse fraction ``kd = Rdiffuse / Rtotal``, in [0, 1].
     """
     kt = np.clip(np.asarray(kt, dtype=np.float64), 0.0, 1.0)
-    kd = 1.0 / (1.0 + np.exp(a + b * kt))
+    poly = 0.9511 - 0.1604 * kt + 4.388 * kt**2 - 16.638 * kt**3 + 12.336 * kt**4
+    kd = np.where(kt <= 0.22, 1.0 - 0.09 * kt, np.where(kt <= 0.80, poly, 0.165))
     return np.clip(kd, 0.0, 1.0)
 
 
@@ -103,7 +111,7 @@ def partition_shortwave(
     kt = np.where(i0 > 0, rin / i0, 0.0)
     kt = np.clip(kt, 0.0, 1.0)
 
-    kd = diffuse_fraction_brl(kt)
+    kd = diffuse_fraction_erbs(kt)
     diffuse = rin * kd
     direct = rin - diffuse
 
