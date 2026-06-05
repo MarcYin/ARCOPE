@@ -180,6 +180,39 @@ def normalised_reference_spectrum(
     return interpolated / total
 
 
+def _full_band_normalised_spectrum(
+    target_wavelength_nm: np.ndarray,
+    *,
+    full_wavelength_nm: np.ndarray,
+    reference_wavelength_nm: np.ndarray,
+    reference_flux: np.ndarray,
+) -> np.ndarray:
+    """Sample a reference spectrum, normalised by its integral over the FULL band.
+
+    Unlike :func:`normalised_reference_spectrum` (which normalises over the target
+    grid), this divides by the integral over ``full_wavelength_nm`` so that a
+    sub-band (e.g. the 400-750 nm excitation band) carries only its real share of
+    the broadband flux when scaled by a broadband total.
+    """
+    ref_wl = np.asarray(reference_wavelength_nm, dtype=np.float64)
+    ref_flux = np.clip(np.asarray(reference_flux, dtype=np.float64), a_min=0.0, a_max=None)
+    full_wl = np.asarray(full_wavelength_nm, dtype=np.float64)
+    total = np.trapezoid(np.interp(full_wl, ref_wl, ref_flux, left=0.0, right=0.0), x=full_wl / 1000.0)
+    if not np.isfinite(total) or total <= 0.0:
+        raise ValueError("Reference irradiance spectrum must integrate to a positive value.")
+    sampled = np.interp(np.asarray(target_wavelength_nm, dtype=np.float64), ref_wl, ref_flux, left=0.0, right=0.0)
+    return sampled / total
+
+
+def normalised_planck_shape(wavelength_nm: np.ndarray, temperature_k: float = 288.0) -> np.ndarray:
+    """Normalised blackbody spectral shape that integrates to 1 over wavelength (in um)."""
+    wl_nm = np.asarray(wavelength_nm, dtype=np.float64)
+    c2 = 1.438777e7  # second radiation constant hc/k, in nm*K
+    shape = 1.0 / (wl_nm**5 * (np.exp(c2 / (wl_nm * temperature_k)) - 1.0))
+    total = np.trapezoid(shape, x=wl_nm / 1000.0)
+    return shape / total
+
+
 def build_scope_spectral_forcing(
     rin: xr.DataArray,
     sza: xr.DataArray,
@@ -189,6 +222,9 @@ def build_scope_spectral_forcing(
     scope_root_path: str | Path | None = None,
     wavelength_nm: np.ndarray | None = None,
     excitation_wavelength_nm: np.ndarray | None = None,
+    rli: xr.DataArray | None = None,
+    thermal_wavelength_nm: np.ndarray | None = None,
+    sky_temperature_k: float = 288.0,
 ) -> xr.Dataset:
     """Build SCOPE spectral irradiance inputs from broadband shortwave forcing.
 
@@ -251,15 +287,21 @@ def build_scope_spectral_forcing(
         reference_wavelength_nm=ref_wl,
         reference_flux=ref_diffuse,
     )
-    excitation_direct = normalised_reference_spectrum(
-        excitation_wavelength_nm,
-        reference_wavelength_nm=ref_wl,
-        reference_flux=ref_direct,
+    # Fluorescence excitation irradiance. This must carry only the share of the
+    # broadband shortwave that actually falls in the 400-750 nm excitation band
+    # (~45% of broadband), NOT the whole broadband. Normalising the spectrum over
+    # the excitation band alone (as a stand-alone call to
+    # ``normalised_reference_spectrum`` would) forces 100% of ``direct`` into
+    # 400-750 nm and roughly doubles the excitation irradiance, doubling SIF. We
+    # instead normalise over the full shortwave band and sample at the excitation
+    # wavelengths, so ``Esun_``/``Esky_`` carry the real PAR-band irradiance.
+    excitation_direct = _full_band_normalised_spectrum(
+        excitation_wavelength_nm, full_wavelength_nm=wavelength_nm,
+        reference_wavelength_nm=ref_wl, reference_flux=ref_direct,
     )
-    excitation_diffuse = normalised_reference_spectrum(
-        excitation_wavelength_nm,
-        reference_wavelength_nm=ref_wl,
-        reference_flux=ref_diffuse,
+    excitation_diffuse = _full_band_normalised_spectrum(
+        excitation_wavelength_nm, full_wavelength_nm=wavelength_nm,
+        reference_wavelength_nm=ref_wl, reference_flux=ref_diffuse,
     )
 
     direct_da = xr.DataArray(direct, dims=rin_aligned.dims, coords=rin_aligned.coords)
@@ -277,7 +319,7 @@ def build_scope_spectral_forcing(
         coords={"excitation_wavelength": excitation_wavelength_nm},
     )
 
-    return xr.Dataset(
+    out = xr.Dataset(
         {
             "Esun_sw": direct_da * wavelength_da,
             "Esky_sw": diffuse_da * wavelength_diffuse_da,
@@ -285,3 +327,29 @@ def build_scope_spectral_forcing(
             "Esky_": diffuse_da * excitation_diffuse_da,
         }
     )
+
+    # Incoming atmospheric longwave. SCOPE's energy balance zero-fills the thermal
+    # band when ``Esun_lw``/``Esky_lw`` are absent, which drops the incoming
+    # longwave entirely and runs the canopy ~10-15 deg C too cold. Atmospheric
+    # thermal emission is all-sky (diffuse), so put the broadband ``Rli`` into
+    # ``Esky_lw`` distributed over the thermal band by a normalised blackbody, and
+    # leave ``Esun_lw`` at zero. ``Esky_lw`` integrates (over wavelength in um) to
+    # ``Rli``, matching the shortwave convention.
+    if rli is not None:
+        thermal_wavelength_nm = (
+            np.asarray(thermal_wavelength_nm, dtype=np.float64)
+            if thermal_wavelength_nm is not None
+            else np.concatenate(
+                [np.arange(2500.0, 15001.0, 100.0), np.arange(16000.0, 50001.0, 1000.0)]
+            )
+        )
+        planck = normalised_planck_shape(thermal_wavelength_nm, sky_temperature_k)
+        rli_aligned, _ = xr.broadcast(rli, doy)
+        rli_da = xr.DataArray(rli_aligned.values, dims=rli_aligned.dims, coords=rli_aligned.coords)
+        thermal_da = xr.DataArray(
+            planck, dims=("thermal_wavelength",), coords={"thermal_wavelength": thermal_wavelength_nm}
+        )
+        out["Esky_lw"] = rli_da * thermal_da
+        out["Esun_lw"] = xr.zeros_like(out["Esky_lw"])
+
+    return out

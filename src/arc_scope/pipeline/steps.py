@@ -1130,6 +1130,7 @@ def _augment_scope_dataset(dataset: xr.Dataset, config: PipelineConfig) -> xr.Da
             time_coord=augmented.coords["time"],
             atmos_file=augmented.attrs.get("atmos_file"),
             scope_root_path=config.scope_root_path,
+            rli=augmented["Rli"] if (is_energy_balance and "Rli" in augmented) else None,
         )
         for name, data_array in spectral_forcing.data_vars.items():
             augmented[name] = data_array.astype(np.float64, copy=False)
@@ -1170,7 +1171,15 @@ def _energy_balance_state(dataset: xr.Dataset, config: PipelineConfig) -> xr.Dat
     d = (0.67 * h).clip(min=0.05)
     z0m = (0.13 * h).clip(min=0.01)
     z = xr.where(h + 2.0 > 10.0, h + 2.0, 10.0)
-    rss = (500.0 - 350.0 * _normalise_state(smc)).clip(min=75.0, max=500.0)
+    # Soil resistances follow SCOPE's calc_rssrbs (Wang et al.): an exponential
+    # soil-evaporation resistance in volumetric soil moisture (fraction) plus an
+    # LAI-scaled boundary resistance. SMC is stored as a percentage in the legacy
+    # cubes, so normalise to a fraction first. This matches the upstream MATLAB
+    # driver rather than a clamped linear heuristic, which understated rss (and so
+    # over-evaporated, cooling the soil ~10C below the MATLAB reference).
+    smc_frac = xr.where(smc > 1.0, smc / 100.0, smc)
+    rss = (11.2 * np.exp(42.0 * (0.22 - smc_frac))).clip(min=1.0, max=1.0e4)
+    rbs = (ENERGY_BALANCE_DEFAULTS["rbs"] * lai / 3.3).clip(min=1.0)
 
     return xr.Dataset(
         {
@@ -1183,7 +1192,7 @@ def _energy_balance_state(dataset: xr.Dataset, config: PipelineConfig) -> xr.Dat
             "d": d,
             "h": h,
             "rss": rss,
-            "rbs": _constant_like(lai, ENERGY_BALANCE_DEFAULTS["rbs"]),
+            "rbs": rbs,
             "Vcmax25": _constant_like(lai, ENERGY_BALANCE_DEFAULTS["Vcmax25"]),
             "BallBerrySlope": _constant_like(
                 lai,
