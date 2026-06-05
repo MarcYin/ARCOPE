@@ -279,7 +279,7 @@ def test_prepare_scope_dataset_seeds_energy_balance_defaults_after_prepare_retry
             coords={"y": [0], "x": [0, 1], "time": times},
         )
 
-    def fake_spectral_forcing(*, rin, sza, time_coord, atmos_file, scope_root_path):
+    def fake_spectral_forcing(*, rin, sza, time_coord, atmos_file, scope_root_path, rli=None, **kwargs):
         return xr.Dataset(
             {
                 "Esun_sw": rin.expand_dims(wavelength=[680.0]),
