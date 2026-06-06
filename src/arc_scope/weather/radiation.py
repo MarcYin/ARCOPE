@@ -3,8 +3,14 @@
 SCOPE's fluorescence and energy-balance workflows require spectrally-resolved
 direct (``Esun_sw``) and diffuse (``Esky_sw``) irradiance on its wavelength
 grid.  This module partitions total incoming shortwave (``Rin``) into these
-components using the Erbs (1982) diffuse fraction model and rescales the bundled
-SCOPE reference spectra onto the requested wavelength grids.
+components and rescales the bundled SCOPE reference spectra onto the requested
+wavelength grids.  Two direct/diffuse split models are available:
+
+* ``"erbs"`` (default) -- the Erbs (1982) clearness-index model, which varies the
+  diffuse fraction per timestep with cloudiness (more physical for real weather).
+* ``"modtran"`` -- the fixed MODTRAN ``.atm`` split recovered from the bundled
+  reference spectra (~0.275 for FLEX-S3), matching SCOPE's ``calcTOCirr``; use for
+  MATLAB-grid consistency.
 """
 
 from __future__ import annotations
@@ -118,6 +124,32 @@ def partition_shortwave(
     return np.maximum(direct, 0.0), np.maximum(diffuse, 0.0)
 
 
+def diffuse_fraction_from_reference(
+    reference_wavelength_nm: np.ndarray,
+    reference_direct: np.ndarray,
+    reference_diffuse: np.ndarray,
+    *,
+    optical_max_nm: float = 3000.0,
+) -> float:
+    """Native diffuse fraction of the bundled MODTRAN reference spectra.
+
+    SCOPE's ``calcTOCirr`` fixes the direct/diffuse split from the MODTRAN ``.atm``
+    file (the ``Esun_``/``Esky_`` shapes) and only rescales the *magnitude* to
+    ``Rin``; it does not re-estimate the split per timestep. This recovers that
+    fixed split by integrating the bundled ``Esun_``/``Esky_`` spectra over the
+    optical band (``wavelength < 3000 nm``). For the standard FLEX-S3 atmosphere
+    it is ~0.275 — the same value MATLAB SCOPE uses, independent of clearness.
+    """
+    wl = np.asarray(reference_wavelength_nm, dtype=np.float64)
+    opt = wl < optical_max_nm
+    direct_int = float(np.trapezoid(np.clip(np.asarray(reference_direct, dtype=np.float64), 0.0, None)[opt], wl[opt]))
+    diffuse_int = float(np.trapezoid(np.clip(np.asarray(reference_diffuse, dtype=np.float64), 0.0, None)[opt], wl[opt]))
+    total = direct_int + diffuse_int
+    if not np.isfinite(total) or total <= 0.0:
+        raise ValueError("Reference spectra must integrate to a positive total.")
+    return diffuse_int / total
+
+
 @lru_cache(maxsize=8)
 def _load_scope_reference_spectra(reference_dir: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Load the direct and diffuse SCOPE reference spectra from disk.
@@ -225,6 +257,7 @@ def build_scope_spectral_forcing(
     rli: xr.DataArray | None = None,
     thermal_wavelength_nm: np.ndarray | None = None,
     sky_temperature_k: float = 288.0,
+    diffuse_model: str = "erbs",
 ) -> xr.Dataset:
     """Build SCOPE spectral irradiance inputs from broadband shortwave forcing.
 
@@ -266,17 +299,31 @@ def build_scope_spectral_forcing(
         coords={"time": time_coord.values},
     )
     rin_aligned, sza_aligned, doy_aligned = xr.broadcast(rin, sza, doy)
-    direct, diffuse = partition_shortwave(
-        rin_aligned.values,
-        sza_aligned.values,
-        doy_aligned.values,
-    )
 
     radiation_dir = resolve_scope_radiation_dir(
         atmos_file=atmos_file,
         scope_root_path=scope_root_path,
     )
     ref_wl, ref_direct, ref_diffuse = _load_scope_reference_spectra(str(radiation_dir))
+
+    if diffuse_model == "modtran":
+        # Match SCOPE's calcTOCirr: the direct/diffuse split is fixed by the
+        # MODTRAN .atm (recovered from the bundled spectra), only the magnitude is
+        # rescaled to Rin. Clear-sky split (~0.275), independent of clearness.
+        kd = diffuse_fraction_from_reference(ref_wl, ref_direct, ref_diffuse)
+        rin_vals = np.maximum(rin_aligned.values, 0.0)
+        diffuse = rin_vals * kd
+        direct = rin_vals * (1.0 - kd)
+    elif diffuse_model == "erbs":
+        # Per-timestep clearness-index split (Erbs 1982): more physical for real
+        # cloudy-sky weather forcing, where the diffuse fraction varies.
+        direct, diffuse = partition_shortwave(
+            rin_aligned.values,
+            sza_aligned.values,
+            doy_aligned.values,
+        )
+    else:
+        raise ValueError(f"unknown diffuse_model {diffuse_model!r}; expected 'erbs' or 'modtran'")
     shortwave_direct = normalised_reference_spectrum(
         wavelength_nm,
         reference_wavelength_nm=ref_wl,

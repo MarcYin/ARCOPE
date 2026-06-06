@@ -126,6 +126,12 @@ class PipelineConfig:
     device: str = "cpu"
     dtype: str = "float64"
     scope_chunk_size: int | None = 1024
+    # Direct/diffuse shortwave split for the spectral forcing.
+    #   "erbs"    -- per-timestep Erbs clearness-index model (default; varies with
+    #                cloudiness, more physical for real weather).
+    #   "modtran" -- fixed MODTRAN .atm split matching SCOPE's calcTOCirr
+    #                (clear-sky ~0.275; use for MATLAB-grid consistency).
+    diffuse_model: str = "erbs"
 
     # Output options
     output_dir: PathLike = Path("./output")

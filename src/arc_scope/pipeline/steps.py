@@ -1131,6 +1131,7 @@ def _augment_scope_dataset(dataset: xr.Dataset, config: PipelineConfig) -> xr.Da
             atmos_file=augmented.attrs.get("atmos_file"),
             scope_root_path=config.scope_root_path,
             rli=augmented["Rli"] if (is_energy_balance and "Rli" in augmented) else None,
+            diffuse_model=getattr(config, "diffuse_model", "erbs"),
         )
         for name, data_array in spectral_forcing.data_vars.items():
             augmented[name] = data_array.astype(np.float64, copy=False)
