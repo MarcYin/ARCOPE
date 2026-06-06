@@ -1130,11 +1130,19 @@ def _augment_scope_dataset(dataset: xr.Dataset, config: PipelineConfig) -> xr.Da
             time_coord=augmented.coords["time"],
             atmos_file=augmented.attrs.get("atmos_file"),
             scope_root_path=config.scope_root_path,
+            rin_direct=augmented["Rin_dir"] if "Rin_dir" in augmented else None,
             rli=augmented["Rli"] if (is_energy_balance and "Rli" in augmented) else None,
             diffuse_model=getattr(config, "diffuse_model", "erbs"),
         )
         for name, data_array in spectral_forcing.data_vars.items():
             augmented[name] = data_array.astype(np.float64, copy=False)
+
+    # Crop-appropriate leaf-angle prior when ``ala`` is not retrieved, so the
+    # Campbell LIDF reflects canopy architecture (corn/miscanthus erectophile,
+    # soybean planophile) rather than a generic spherical (57 deg) fallback. A
+    # retrieved ``ala`` in the cube always takes precedence.
+    if "ala" not in augmented and "LAI" in augmented:
+        augmented["ala"] = _constant_like(augmented["LAI"], _crop_leaf_angle(config.crop_type)).rename("ala")
 
     if is_energy_balance:
         energy_balance_state = _energy_balance_state(augmented, config)
@@ -1203,13 +1211,30 @@ def _energy_balance_state(dataset: xr.Dataset, config: PipelineConfig) -> xr.Dat
     )
 
 
+#: Uniform literature prior for the fluorescence quantum efficiency. The true
+#: ``fqe`` is the quantity the SIF inversion *recovers* (see EXP-005); the forward
+#: pipeline only needs a sensible starting value when ``fqe`` is not supplied.
+DEFAULT_FQE_PRIOR = 0.01
+
+#: Crop-specific mean leaf-inclination angle (deg) priors for the Campbell LIDF,
+#: used only when ``ala`` is not retrieved. 57 deg ~ spherical.
+CROP_LEAF_ANGLE_DEG = {"corn": 63.0, "maize": 63.0, "soybean": 45.0, "soy": 45.0, "miscanthus": 65.0}
+
+
+def _crop_leaf_angle(crop_type: str) -> float:
+    return CROP_LEAF_ANGLE_DEG.get(str(crop_type).lower(), 57.0)
+
+
 def _diagnostic_fqe(dataset: xr.Dataset) -> xr.DataArray:
-    """Build a bounded fluorescence-efficiency field from retrieval state."""
-    cab_norm = _normalise_state(dataset["Cab"])
-    cw_norm = _normalise_state(dataset["Cw"])
-    lai_norm = _normalise_state(dataset["LAI"])
-    fqe = 0.006 + 0.012 * (0.5 * cab_norm + 0.35 * cw_norm + 0.15 * lai_norm)
-    return fqe.clip(min=0.005, max=0.02).rename("fqe")
+    """Uniform fluorescence-efficiency prior (``DEFAULT_FQE_PRIOR``).
+
+    ``fqe`` is a physiological efficiency that is not determined by Cab/Cw/LAI, so
+    the old Cab/Cw/LAI heuristic implied a relationship that does not exist. We use
+    a uniform literature prior (~0.01) instead; per-condition ``fqe`` should be
+    retrieved by inverting against the SIF observations (EXP-005 — single-parameter
+    inversion) rather than assumed from a forward run.
+    """
+    return _constant_like(dataset["LAI"], DEFAULT_FQE_PRIOR).rename("fqe")
 
 
 def _diagnostic_thermal_state(dataset: xr.Dataset) -> xr.Dataset:

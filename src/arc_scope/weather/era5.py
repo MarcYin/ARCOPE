@@ -37,6 +37,7 @@ ERA5_VARIABLES = [
     "2m_temperature",
     "2m_dewpoint_temperature",
     "surface_solar_radiation_downwards",
+    "total_sky_direct_solar_radiation_at_surface",
     "surface_thermal_radiation_downwards",
     "surface_pressure",
     "10m_u_component_of_wind",
@@ -164,6 +165,13 @@ class ERA5Provider(WeatherProvider):
         for era5_name in ("ssrd", "surface_solar_radiation_downwards"):
             if era5_name in ds:
                 out["Rin"] = ds[era5_name] / 3600.0
+                break
+
+        # Surface direct (beam) shortwave: enables the observation-grounded
+        # direct/diffuse split (diffuse_model="era5"); diffuse = Rin - Rin_dir.
+        for era5_name in ("fdir", "total_sky_direct_solar_radiation_at_surface"):
+            if era5_name in ds:
+                out["Rin_dir"] = ds[era5_name] / 3600.0
                 break
 
         # Longwave radiation: J m-2 (accumulated) -> W m-2 (hourly mean)

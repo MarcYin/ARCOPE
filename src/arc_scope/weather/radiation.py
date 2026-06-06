@@ -236,13 +236,29 @@ def _full_band_normalised_spectrum(
     return sampled / total
 
 
+_PLANCK_C2_NM_K = 1.438777e7  # second radiation constant hc/k, in nm*K
+_STEFAN_BOLTZMANN = 5.670374419e-8  # W m-2 K-4
+
+
 def normalised_planck_shape(wavelength_nm: np.ndarray, temperature_k: float = 288.0) -> np.ndarray:
     """Normalised blackbody spectral shape that integrates to 1 over wavelength (in um)."""
     wl_nm = np.asarray(wavelength_nm, dtype=np.float64)
-    c2 = 1.438777e7  # second radiation constant hc/k, in nm*K
-    shape = 1.0 / (wl_nm**5 * (np.exp(c2 / (wl_nm * temperature_k)) - 1.0))
+    shape = 1.0 / (wl_nm**5 * (np.exp(_PLANCK_C2_NM_K / (wl_nm * temperature_k)) - 1.0))
     total = np.trapezoid(shape, x=wl_nm / 1000.0)
     return shape / total
+
+
+def sky_temperature_from_rli(rli: np.ndarray, *, t_min: float = 200.0, t_max: float = 320.0) -> np.ndarray:
+    """Effective sky brightness temperature from downward longwave ``Rli``.
+
+    ``Tsky = (Rli / sigma) ** 0.25``. Physically the spectral shape of the incoming
+    atmospheric longwave depends on the sky temperature, which varies from a clear
+    cold sky (~250 K) to a warm overcast sky (~290 K) — not the fixed 288 K
+    placeholder. Clamped to a sane range to guard against missing/garbage Rli.
+    """
+    rli_arr = np.maximum(np.asarray(rli, dtype=np.float64), 1e-6)
+    tsky = np.power(rli_arr / _STEFAN_BOLTZMANN, 0.25)
+    return np.clip(tsky, t_min, t_max)
 
 
 def build_scope_spectral_forcing(
@@ -254,9 +270,10 @@ def build_scope_spectral_forcing(
     scope_root_path: str | Path | None = None,
     wavelength_nm: np.ndarray | None = None,
     excitation_wavelength_nm: np.ndarray | None = None,
+    rin_direct: xr.DataArray | None = None,
     rli: xr.DataArray | None = None,
     thermal_wavelength_nm: np.ndarray | None = None,
-    sky_temperature_k: float = 288.0,
+    sky_temperature_k: float | None = None,
     diffuse_model: str = "erbs",
 ) -> xr.Dataset:
     """Build SCOPE spectral irradiance inputs from broadband shortwave forcing.
@@ -322,8 +339,21 @@ def build_scope_spectral_forcing(
             sza_aligned.values,
             doy_aligned.values,
         )
+    elif diffuse_model == "era5":
+        # Use the reanalysis' own direct/diffuse split (ERA5 surface direct
+        # ``fdir``): diffuse = Rin - Rin_direct. Observation-grounded, no empirical
+        # correlation, and correct under cloud (where Erbs/MODTRAN are weakest).
+        if rin_direct is None:
+            raise ValueError(
+                "diffuse_model='era5' requires rin_direct (ERA5 surface direct radiation); "
+                "fall back to 'erbs' when the reanalysis direct component is unavailable."
+            )
+        rin_vals = np.maximum(rin_aligned.values, 0.0)
+        dir_aligned, _ = xr.broadcast(rin_direct, rin_aligned)
+        direct = np.clip(np.asarray(dir_aligned.values, dtype=np.float64), 0.0, rin_vals)
+        diffuse = rin_vals - direct
     else:
-        raise ValueError(f"unknown diffuse_model {diffuse_model!r}; expected 'erbs' or 'modtran'")
+        raise ValueError(f"unknown diffuse_model {diffuse_model!r}; expected 'erbs', 'modtran' or 'era5'")
     shortwave_direct = normalised_reference_spectrum(
         wavelength_nm,
         reference_wavelength_nm=ref_wl,
@@ -390,12 +420,26 @@ def build_scope_spectral_forcing(
                 [np.arange(2500.0, 15001.0, 100.0), np.arange(16000.0, 50001.0, 1000.0)]
             )
         )
-        planck = normalised_planck_shape(thermal_wavelength_nm, sky_temperature_k)
         rli_aligned, _ = xr.broadcast(rli, doy)
         rli_da = xr.DataArray(rli_aligned.values, dims=rli_aligned.dims, coords=rli_aligned.coords)
-        thermal_da = xr.DataArray(
-            planck, dims=("thermal_wavelength",), coords={"thermal_wavelength": thermal_wavelength_nm}
+        wl_da = xr.DataArray(
+            thermal_wavelength_nm, dims=("thermal_wavelength",), coords={"thermal_wavelength": thermal_wavelength_nm}
         )
+        if sky_temperature_k is None:
+            # Per-timestep sky brightness temperature from Rli -> the longwave
+            # spectral shape tracks the actual (clear vs overcast) sky.
+            tsky = xr.DataArray(
+                sky_temperature_from_rli(rli_da.values), dims=rli_da.dims, coords=rli_da.coords
+            )
+            shape = 1.0 / (wl_da**5 * (np.exp(_PLANCK_C2_NM_K / (wl_da * tsky)) - 1.0))
+            # Normalise to integrate to 1 over wavelength in um (nm integral / 1000).
+            thermal_da = shape / (shape.integrate("thermal_wavelength") / 1000.0)
+        else:
+            thermal_da = xr.DataArray(
+                normalised_planck_shape(thermal_wavelength_nm, sky_temperature_k),
+                dims=("thermal_wavelength",),
+                coords={"thermal_wavelength": thermal_wavelength_nm},
+            )
         out["Esky_lw"] = rli_da * thermal_da
         out["Esun_lw"] = xr.zeros_like(out["Esky_lw"])
 

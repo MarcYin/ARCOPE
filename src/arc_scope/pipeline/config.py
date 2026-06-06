@@ -127,8 +127,11 @@ class PipelineConfig:
     dtype: str = "float64"
     scope_chunk_size: int | None = 1024
     # Direct/diffuse shortwave split for the spectral forcing.
+    #   "era5"    -- the reanalysis' own direct component (diffuse = Rin - Rin_dir);
+    #                observation-grounded, correct under cloud. Needs Rin_dir in the
+    #                forcing (ERA5 'fdir'). Most physical for real-weather science.
     #   "erbs"    -- per-timestep Erbs clearness-index model (default; varies with
-    #                cloudiness, more physical for real weather).
+    #                cloudiness but is an empirical correlation).
     #   "modtran" -- fixed MODTRAN .atm split matching SCOPE's calcTOCirr
     #                (clear-sky ~0.275; use for MATLAB-grid consistency).
     diffuse_model: str = "erbs"
