@@ -446,6 +446,42 @@ def _seed_missing_parameter_variables(
     return seeded
 
 
+def _build_forward_runner(config: PipelineConfig, runner_dataset, *, device, dtype):
+    """Build the SCOPE grid runner per the config's LIDF mode / optipar / hotspot.
+
+    Returns ``(runner, runner_dataset)``. The dataset may have per-pixel ALA
+    dropped when ``lidf_mode == "verhoef"`` so the static two-parameter Verhoef
+    distribution is used instead of a per-pixel Campbell LIDF. Defaults reproduce
+    the historical science path: Campbell spherical 57 deg, packaged optipar,
+    runner-default hotspot.
+    """
+    from scope import ScopeGridRunner, campbell_lidf
+
+    asset_kwargs: dict = {
+        "device": device,
+        "dtype": dtype,
+        "scope_root_path": config.scope_root_path,
+    }
+    if config.optipar_file is not None:
+        asset_kwargs["fluspect_path"] = config.optipar_file
+    if config.hotspot is not None:
+        asset_kwargs["default_hotspot"] = config.hotspot
+
+    if config.lidf_mode == "verhoef":
+        from scope.canopy.foursail import FourSAILModel, scope_lidf, scope_litab
+
+        lidf = scope_lidf(config.lidfa, config.lidfb, device=device, dtype=dtype)
+        sail = FourSAILModel(lidf=lidf, litab=scope_litab(device=device, dtype=dtype))
+        drop = [v for v in ("ala", "ALA", "Ala") if v in runner_dataset.data_vars]
+        if drop:
+            runner_dataset = runner_dataset.drop_vars(drop)
+        runner = ScopeGridRunner.from_scope_assets(lidf=lidf, sail=sail, **asset_kwargs)
+    else:
+        lidf = campbell_lidf(57.0, device=device, dtype=dtype)
+        runner = ScopeGridRunner.from_scope_assets(lidf=lidf, **asset_kwargs)
+    return runner, runner_dataset
+
+
 def run_scope_simulation(
     scope_dataset: xr.Dataset,
     config: PipelineConfig,
@@ -465,7 +501,7 @@ def run_scope_simulation(
     """
     try:
         import torch
-        from scope import SimulationConfig, ScopeGridRunner, campbell_lidf
+        from scope import SimulationConfig
         from scope.data import ScopeGridDataModule
         from scope.io import validate_scope_dataset
         from scope.spectral.fluspect import FluspectModel
@@ -500,14 +536,10 @@ def run_scope_simulation(
         chunk_size=_resolve_scope_chunk_size(config),
     )
 
-    # Build leaf inclination distribution (Campbell spherical, 57 deg)
-    lidf = campbell_lidf(57.0, device=device, dtype=torch_dtype)
-
-    runner = ScopeGridRunner.from_scope_assets(
-        lidf=lidf,
-        device=device,
-        dtype=torch_dtype,
-        scope_root_path=config.scope_root_path,
+    # Build the runner + (possibly ALA-dropped) dataset per the configured LIDF
+    # mode / optipar / hotspot. Defaults reproduce the Campbell-57 science path.
+    runner, runner_dataset = _build_forward_runner(
+        config, runner_dataset, device=device, dtype=torch_dtype
     )
 
     # Build data module with required variables

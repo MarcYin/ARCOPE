@@ -136,6 +136,22 @@ class PipelineConfig:
     #                (clear-sky ~0.275; use for MATLAB-grid consistency).
     diffuse_model: str = "erbs"
 
+    # Canopy-structure / leaf-optics knobs for the SCOPE forward
+    # (``run_scope_simulation``). Defaults reproduce the historical science
+    # behaviour: a Campbell spherical LIDF at 57 deg, the packaged optipar, and
+    # the runner-default hotspot. Switch ``lidf_mode="verhoef"`` (with
+    # ``lidfa``/``lidfb``), point ``optipar_file`` at ProspectD, and set
+    # ``hotspot`` to reproduce the MATLAB-grid / ``regenerate_grid_scope.py``
+    # outputs bit-for-bit.
+    #   "campbell" -- Campbell spherical LIDF at 57 deg (default).
+    #   "verhoef"  -- fixed Verhoef two-parameter LIDF (lidfa, lidfb); per-pixel
+    #                 ALA is dropped so the static distribution is used.
+    lidf_mode: str = "campbell"
+    lidfa: float = -0.35
+    lidfb: float = -0.15
+    optipar_file: PathLike | None = None
+    hotspot: float | None = None
+
     # Output options
     output_dir: PathLike = Path("./output")
     save_arc_npz: bool = True

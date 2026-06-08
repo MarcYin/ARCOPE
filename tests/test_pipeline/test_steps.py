@@ -13,6 +13,7 @@ from arc_scope.data import TEST_FIELD_GEOJSON
 from arc_scope.pipeline.steps import (
     ArcResult,
     _augment_scope_dataset,
+    _build_forward_runner,
     bridge_arc_to_scope,
     build_observation_dataset,
     fetch_weather,
@@ -684,3 +685,99 @@ def test_run_scope_simulation_routes_energy_balance_to_coupled_runner(monkeypatc
         ("energy-balance-fluorescence", None),
         ("energy-balance-thermal", None),
     ]
+
+
+def _forward_runner_config(**overrides):
+    base = dict(
+        geojson_path=str(TEST_FIELD_GEOJSON),
+        start_date="2021-05-15",
+        end_date="2021-10-01",
+        crop_type="wheat",
+        start_of_season=170,
+        year=2021,
+        scope_workflow="energy-balance",
+    )
+    base.update(overrides)
+    return PipelineConfig(**base)
+
+
+def _forward_runner_dataset():
+    return xr.Dataset(
+        {
+            "LAI": (("time", "y", "x"), np.ones((1, 1, 1))),
+            "ALA": (("time", "y", "x"), np.full((1, 1, 1), 50.0)),
+        },
+        coords={"time": [pd.Timestamp("2021-06-01")], "y": [0.0], "x": [0.0]},
+    )
+
+
+def test_build_forward_runner_verhoef_drops_ala_and_sets_optipar_hotspot(monkeypatch):
+    """verhoef mode builds a static Verhoef LIDF + SAIL, drops ALA, forwards optipar/hotspot."""
+    captured: dict = {}
+
+    class FakeRunner:
+        @classmethod
+        def from_scope_assets(cls, **kwargs):
+            captured["assets"] = kwargs
+            return "runner"
+
+    monkeypatch.setitem(
+        sys.modules, "scope",
+        types.SimpleNamespace(
+            ScopeGridRunner=FakeRunner,
+            campbell_lidf=lambda angle, device, dtype: ("campbell", angle),
+        ),
+    )
+    monkeypatch.setitem(
+        sys.modules, "scope.canopy.foursail",
+        types.SimpleNamespace(
+            FourSAILModel=lambda lidf, litab: ("sail", lidf, litab),
+            scope_lidf=lambda a, b, device, dtype: ("verhoef", a, b),
+            scope_litab=lambda device, dtype: "litab",
+        ),
+    )
+
+    config = _forward_runner_config(
+        lidf_mode="verhoef", lidfa=-0.35, lidfb=-0.15,
+        optipar_file="/opt/Optipar2", hotspot=0.05,
+    )
+    runner, out_ds = _build_forward_runner(
+        config, _forward_runner_dataset(), device="cpu", dtype="float64"
+    )
+
+    assert runner == "runner"
+    assert "ALA" not in out_ds.data_vars  # per-pixel ALA dropped so static Verhoef is used
+    assert captured["assets"]["lidf"] == ("verhoef", -0.35, -0.15)
+    assert captured["assets"]["sail"][0] == "sail"
+    assert captured["assets"]["fluspect_path"] == "/opt/Optipar2"
+    assert captured["assets"]["default_hotspot"] == 0.05
+
+
+def test_build_forward_runner_campbell_default_keeps_ala_and_packaged_assets(monkeypatch):
+    """Default (campbell) mode keeps ALA and leaves optipar/hotspot at runner defaults."""
+    captured: dict = {}
+
+    class FakeRunner:
+        @classmethod
+        def from_scope_assets(cls, **kwargs):
+            captured["assets"] = kwargs
+            return "runner"
+
+    monkeypatch.setitem(
+        sys.modules, "scope",
+        types.SimpleNamespace(
+            ScopeGridRunner=FakeRunner,
+            campbell_lidf=lambda angle, device, dtype: ("campbell", angle),
+        ),
+    )
+
+    runner, out_ds = _build_forward_runner(
+        _forward_runner_config(), _forward_runner_dataset(), device="cpu", dtype="float64"
+    )
+
+    assert runner == "runner"
+    assert "ALA" in out_ds.data_vars  # ALA retained
+    assert captured["assets"]["lidf"] == ("campbell", 57.0)
+    assert "sail" not in captured["assets"]
+    assert "fluspect_path" not in captured["assets"]  # packaged optipar
+    assert "default_hotspot" not in captured["assets"]  # runner-default hotspot
